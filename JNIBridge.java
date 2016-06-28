@@ -30,6 +30,7 @@ public class JNIBridge
 			{
 				if (m_Ptr == 0)
 					return null;
+				android.util.Log.i("JNIBridge", "ProxyInvoke " + method.getName());
 				return JNIBridge.invoke(m_Ptr, method.getDeclaringClass(), method, args);
 			}
 		}

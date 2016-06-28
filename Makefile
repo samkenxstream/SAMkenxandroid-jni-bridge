@@ -46,7 +46,7 @@ ${GENDIR}/API.h: ${APIJAR} ${GPSJAR} ${APIGENERATOR_CLASSES} templates/* | ${GEN
 
 api-generator: ${APIGENERATOR_CLASSES} ;
 ${BUILDDIR}/%.class: %.java | ${BUILDDIR}
-	${JAVAC} ${JAVACFLAGS} -d ${BUILDDIR} $<
+	${JAVAC} ${JAVACFLAGS} -cp ${APIJAR} -d ${BUILDDIR} $<
 
 clean:
 	@rm -fr ${BUILDDIR}
