@@ -8,7 +8,7 @@ use File::Path;
 use strict;
 use warnings;
 
-my $api = "android-28";
+my $api = "android-31";
 
 my @classes = (
 	'::android::Manifest_permission',
