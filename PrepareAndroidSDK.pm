@@ -46,7 +46,7 @@ our $sdks =
     "android-21" => "android-21_r02.zip",
     "android-23" => "android-23_r02.zip",
     "android-26" => "platform-26_r02.zip",
-    "android-31" => "platform-31_r02.zip",
+    "android-31" => "platform-31_r01.zip",
     };
 
 our $sdk_tools =
