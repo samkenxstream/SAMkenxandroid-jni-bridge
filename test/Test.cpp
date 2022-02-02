@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <utility>
+#include <thread>
 
 #include "API.h"
 #include "Proxy.h"
@@ -392,6 +393,79 @@ int main(int,char**)
 		}
 
 		printf("Moved string via constructor: %s\n", str_ctor_moved.c_str());
+	}
+
+	// -------------------------------------------------------------
+	// LocalScope
+	// -------------------------------------------------------------
+	{
+		std::thread th([]{
+			JNIEnv* env = jni::GetEnv();
+			if (env != nullptr)
+			{
+				puts("Expected null JNIEnv prior to attach from thread");
+				abort();
+			}
+
+			puts("Attaching secondary thread");
+
+			{
+				jni::LocalScope scope;
+
+				env = jni::GetEnv();
+				if (env == nullptr)
+				{
+					puts("Expected not-null JNIEnv after attach from thread");
+					abort();
+				}
+
+				auto str = env->NewStringUTF("hello");
+				if (!str)
+				{
+					puts("Expected to create string in the attached thread");
+					abort();
+				}
+
+				{
+					jni::LocalScope nested;
+
+					env = jni::GetEnv();
+					if (env == nullptr)
+					{
+						puts("Expected not-null JNIEnv after attach second scope");
+						abort();
+					}
+
+					// test JNI works and also test LocalScope is also usable as JNIEnv
+					auto chars = nested->GetStringUTFChars(str, nullptr);
+					printf("Nested frame accesses outer frame string chars: %s\n", chars);
+					JNIEnv* jniEnv = nested;  // this should trigger implicit conversion operator
+					jniEnv->ReleaseStringUTFChars(str, chars);
+				}
+
+				env = jni::GetEnv();
+				if (env == nullptr)
+				{
+					puts("Expected not-null JNIEnv after second scope exited");
+					abort();
+				}
+
+				auto chars = env->GetStringUTFChars(str, nullptr);
+				printf("After destroying nested frame can still access string chars: %s\n", chars);
+				env->ReleaseStringUTFChars(str, chars);
+			}
+
+			env = jni::GetEnv();
+			if (env != nullptr)
+			{
+				puts("Expected null JNIEnv after destroying outer scope");
+				abort();
+			}
+
+			puts("Secondary thread now detached");
+		});
+
+		th.join();
 	}
 
 	printf("%s\n", "EOP");
