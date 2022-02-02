@@ -393,6 +393,35 @@ jlong GetDirectBufferCapacity(jobject byteBuffer)
 }
 
 // --------------------------------------------------------------------------------------
+// LocalScope
+// --------------------------------------------------------------------------------------
+LocalScope::LocalScope()
+	: m_Env(jni::GetEnv())
+	, m_ScopeState(kStateError)
+{
+	if (nullptr == m_Env)
+	{
+		m_Env = AttachCurrentThread();
+		if (nullptr == m_Env)
+			FatalError("Failed to attach thread to Java");
+		else
+			m_ScopeState = kStateAttachedThread;
+	}
+	else if (0 == PushLocalFrame(kLocalFrameCapacity))
+		m_ScopeState = kStatePushedFrame;
+	else
+		FatalError("Out of memory: Unable to allocate local frame");
+}
+
+LocalScope::~LocalScope()
+{
+	if (m_ScopeState == kStatePushedFrame)
+		PopLocalFrame(NULL);
+	else if (m_ScopeState == kStateAttachedThread)
+		DetachCurrentThread();
+}
+
+// --------------------------------------------------------------------------------------
 // ThreadScope
 // --------------------------------------------------------------------------------------
 ThreadScope::ThreadScope()

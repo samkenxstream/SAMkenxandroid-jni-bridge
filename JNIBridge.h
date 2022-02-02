@@ -90,6 +90,33 @@ jobject      NewDirectByteBuffer(void* buffer, jlong size);
 void*        GetDirectBufferAddress(jobject byteBuffer);
 jlong        GetDirectBufferCapacity(jobject byteBuffer);
 
+class LocalScope
+{
+public:
+	LocalScope();
+	LocalScope(const LocalScope&) = delete;
+	LocalScope& operator=(const LocalScope&) = delete;
+	~LocalScope();
+
+	operator JNIEnv*()
+	{
+		return m_Env;
+	}
+
+	JNIEnv* operator->()
+	{
+		return m_Env;
+	}
+private:
+	static const char kStateError = 0;
+	static const char kStateAttachedThread = 1;
+	static const char kStatePushedFrame = 2;
+	static const jint kLocalFrameCapacity = 64;
+
+	JNIEnv* m_Env;
+	unsigned char m_ScopeState;
+};
+
 class ThreadScope
 {
 public:
