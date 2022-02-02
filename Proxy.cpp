@@ -20,7 +20,7 @@ JNIEXPORT void JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_delet
 
 bool ProxyInvoker::__Register()
 {
-	jni::LocalFrame frame;
+	jni::LocalScope frame;
 	jni::Class nativeProxyClass("bitter/jnibridge/JNIBridge");
 	char invokeMethodName[] = "invoke";
 	char invokeMethodSignature[] = "(JLjava/lang/Class;Ljava/lang/reflect/Method;[Ljava/lang/Object;)Ljava/lang/Object;";

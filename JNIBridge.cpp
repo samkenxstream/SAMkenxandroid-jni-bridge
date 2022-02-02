@@ -148,7 +148,7 @@ bool CheckForExceptionError(JNIEnv* env) // Do we need to make this safer?
 		{
 			SetError(kJNI_EXCEPTION_THROWN, "java.lang.IllegalThreadStateException: Unable to determine exception message");
 
-			LocalFrame frame;
+			LocalScope frame;
 			jthrowable t = env->ExceptionOccurred();
 			env->ExceptionClear();
 			{
