@@ -421,33 +421,4 @@ LocalScope::~LocalScope()
 		DetachCurrentThread();
 }
 
-// --------------------------------------------------------------------------------------
-// ThreadScope
-// --------------------------------------------------------------------------------------
-ThreadScope::ThreadScope()
-{
-	m_NeedDetach = !jni::GetEnv();
-}
-
-ThreadScope::~ThreadScope()
-{
-	if (m_NeedDetach)
-		jni::DetachCurrentThread();
-}
-
-// --------------------------------------------------------------------------------------
-// LocalFrame
-// --------------------------------------------------------------------------------------
-LocalFrame::LocalFrame(jint capacity)
-{
-	m_FramePushed = PushLocalFrame(capacity) == 0;
-	if (!m_FramePushed)
-		FatalError("Out of memory: Unable to allocate local frame(64)");
-}
-LocalFrame::~LocalFrame()
-{
-	if (m_FramePushed)
-		PopLocalFrame(NULL);
-}
-
 }

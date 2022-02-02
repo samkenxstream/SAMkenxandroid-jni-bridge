@@ -117,28 +117,6 @@ private:
 	unsigned char m_ScopeState;
 };
 
-class ThreadScope
-{
-public:
-	ThreadScope();
-	~ThreadScope();
-
-private:
-	bool m_NeedDetach;
-};
-
-class LocalFrame
-{
-public:
-	LocalFrame(jint capacity = 64);
-	~LocalFrame();
-
-private:
-	LocalFrame(const LocalFrame& frame);
-	LocalFrame& operator=(const LocalFrame& rhs);
-	bool m_FramePushed;
-};
-
 // Some logic explanation
 // Only invoke function if thread can be attached
 // Only invoke function if 'parameters' == true
