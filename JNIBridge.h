@@ -117,6 +117,10 @@ private:
 	unsigned char m_ScopeState;
 };
 
+// For existing code still using two classes we had before
+typedef LocalScope ThreadScope;
+typedef LocalScope LocalFrame;
+
 // Some logic explanation
 // Only invoke function if thread can be attached
 // Only invoke function if 'parameters' == true
