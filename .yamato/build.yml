@@ -5,7 +5,7 @@ build_for_android:
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
   commands:
-    - perl build.pl
+    - ./bee build:android:zip
   artifacts:
     artifacts:
       paths:
@@ -18,8 +18,8 @@ test_on_osx:
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
   commands:
-    - perl build-osx.pl
-    - make -f test/Makefile
+    - ./bee build:osx:test
+    - ./build/osx/test
 
 test_trigger:
   name: Tests Trigger
