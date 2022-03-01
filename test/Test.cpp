@@ -18,7 +18,7 @@ int main(int,char**)
 	JavaVMInitArgs vm_args;
 	memset(&vm_args, 0, sizeof(vm_args));
 
-	char classPath[] = {"-Djava.class.path=build"};
+	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
 
 	JavaVMOption options[1];
 	options[0].optionString = classPath;
