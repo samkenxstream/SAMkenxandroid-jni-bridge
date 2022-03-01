@@ -93,6 +93,8 @@ class JniBridge
         var codegen = CodeGen.Release;
 
         var jdk = Jdk.UserDefault;
+        if (jdk == null)
+            throw new Exception("No JDK, JAVA_HOME not set?");
         var sdk = SetupAndroidSdk();
 
         var apiGenerator = SetupApiGenerator(jdk);
