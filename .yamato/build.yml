@@ -17,9 +17,11 @@ test_on_osx:
     type: Unity::VM::osx
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
+  variables:
+    ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
   commands:
     - perl build.pl
-    - Android_SDK_ROOT=~/android-sdk_auto ./bee build:osx:test
+    - ./bee build:osx:test
     - ./build/osx/test
 
 test_trigger:
