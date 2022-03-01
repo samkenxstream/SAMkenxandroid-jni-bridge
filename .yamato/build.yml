@@ -18,7 +18,8 @@ test_on_osx:
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
   commands:
-    - ./bee build:osx:test
+    - perl build.pl
+    - Android_SDK_ROOT=~/android-sdk_auto ./bee build:osx:test
     - ./build/osx/test
 
 test_trigger:

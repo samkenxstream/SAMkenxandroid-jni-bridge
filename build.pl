@@ -87,13 +87,13 @@ sub BuildAndroid
 
     PrepareAndroidSDK::GetAndroidSDK("$api", "21", "froyo", "r21", "24");
 
-    system("make clean") && die("Clean failed");
-    system("make api-source PLATFORM=android APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make API source");
-    system("make api-module PLATFORM=android APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make API module");
-    system("make compile-static-apilib -j$threads PLATFORM=android ABI=armeabi-v7a APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android armv7 library");
-    system("make compile-static-apilib -j$threads PLATFORM=android ABI=arm64-v8a   APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android arm64 library");
-    system("make compile-static-apilib -j$threads PLATFORM=android ABI=x86         APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android x86 library");
-    system("make compile-static-apilib -j$threads PLATFORM=android ABI=x86_64      APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android x86_64 library");
+    #system("make clean") && die("Clean failed");
+    #system("make api-source PLATFORM=android APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make API source");
+    #system("make api-module PLATFORM=android APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make API module");
+    #system("make compile-static-apilib -j$threads PLATFORM=android ABI=armeabi-v7a APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android armv7 library");
+    #system("make compile-static-apilib -j$threads PLATFORM=android ABI=arm64-v8a   APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android arm64 library");
+    #system("make compile-static-apilib -j$threads PLATFORM=android ABI=x86         APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android x86 library");
+    #system("make compile-static-apilib -j$threads PLATFORM=android ABI=x86_64      APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make android x86_64 library");
 }
 
 sub ZipIt
