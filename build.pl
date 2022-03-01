@@ -115,4 +115,4 @@ sub ZipIt
 }
 
 BuildAndroid();
-ZipIt();
+#ZipIt();
