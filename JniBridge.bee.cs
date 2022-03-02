@@ -6,6 +6,7 @@ using Bee.Core;
 using Bee.Core.Stevedore;
 using Bee.NativeProgramSupport;
 using Bee.Toolchain.Android;
+using Bee.Toolchain.GNU;
 using Bee.Tools;
 using NiceIO;
 
@@ -275,11 +276,15 @@ class JniBridge
 
     static StaticLibParams GetAndroidStaticLibParams(ToolChain toolchain)
     {
-        Action<NativeProgram> specConfig = null;
-        if (toolchain.Architecture is ARMv7Architecture)
-            specConfig = (np) =>
+        Action<NativeProgram> specConfig =  (toolchain.Architecture is ARMv7Architecture)
+            ? (np) =>
             {
                 np.CompilerSettingsForAndroid().Add(c => c.WithThumb(true));
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
+            }
+            : (np) =>
+            {
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
             };
         return new StaticLibParams()
         {
