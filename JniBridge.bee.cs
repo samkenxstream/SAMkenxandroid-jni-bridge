@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Text;
 using Bee.BuildTools;
 using Bee.Core;
+using Bee.Core.Stevedore;
 using Bee.NativeProgramSupport;
 using Bee.Toolchain.Android;
+using Bee.Tools;
 using NiceIO;
 
 class JniBridge
@@ -92,9 +94,7 @@ class JniBridge
     	using var _ = new BuildProgramContext();
         var codegen = CodeGen.Release;
 
-        var jdk = Jdk.UserDefault;
-        if (jdk == null)
-            throw new Exception("No JDK, JAVA_HOME not set?");
+        var jdk = SetupJava();
         var sdk = SetupAndroidSdk();
 
         var apiGenerator = SetupApiGenerator(jdk);
@@ -124,6 +124,19 @@ class JniBridge
         var androidZipPath = "build/builds.zip";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
+    }
+
+    static Jdk SetupJava()
+    {
+        var jdk = Jdk.UserDefault;
+        if (jdk != null)
+            return jdk;
+        var openJdk = StevedoreArtifact.UnityInternal(HostPlatform.Pick(
+            linux:   "open-jdk-linux-x64/jdk8u172-b11_4be8440cc514099cfe1b50cbc74128f6955cd90fd5afe15ea7be60f832de67b4.zip",
+            mac:     "open-jdk-mac-x64/jdk8u172-b11_01c8518f34d083b6adf57f1a3a7cff76e78dc0a2523b6332d10a0f30fcb8d308.zip",
+            windows: "open-jdk-win-x64/jdk8u172-b11_43d8964b5d97b95a87b54ed5b08b70dcb0aa4f6521a1dad4caba958e44c205b9.zip"
+        ));
+        return new Jdk(openJdk.Path.ResolveWithFileSystem());
     }
 
     static NPath SetupAndroidSdk()

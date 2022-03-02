@@ -19,7 +19,6 @@ test_on_osx:
     flavor: b1.xlarge
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
-    JAVA_HOME: /usr
   commands:
     - perl build.pl
     - ./bee build:osx:test
