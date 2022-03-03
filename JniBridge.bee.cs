@@ -251,7 +251,6 @@ class JniBridge
             jdk.Java.InQuotes(SlashMode.Native),
             new[]
             {
-                "-XX:MaxPermSize=128M",
                 "-cp",
                 apiGenerator.InQuotes(),
                 "APIGenerator",
