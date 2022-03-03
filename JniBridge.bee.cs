@@ -10,6 +10,23 @@ using Bee.Toolchain.GNU;
 using Bee.Tools;
 using NiceIO;
 
+/**
+ * Required environment variables:
+ *   - ANDROID_SDK_ROOT pointing to directory with Android SDK
+ *   - JAVA_HOME (optional) pointing to Java install; will be downloaded from Stevedore otherwise
+ * Build targets to pass bee:
+ *   - apigenerator - build the API generator
+ *   - jnibridge - build the jnibridge.jar file
+ *   - generate:jnibridge:android - generate C++ code for Android
+ *   - generate:jnibridge:osx - generate C++ code for MaxOS (used by test program)
+ *   - build:android:armeabi-v7a
+ *   - build:android:arm64-v8a
+ *   - build:android:x86
+ *   - build:android:x86_64
+ *   - build:android:zip - builds all 4 android archs above and zips them (THIS IS THE MAIN ONE)
+ *   - build:osx:x86_64
+ *   - build:osx:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
+ */
 class JniBridge
 {
     const string kAndroidApi = "android-31";
