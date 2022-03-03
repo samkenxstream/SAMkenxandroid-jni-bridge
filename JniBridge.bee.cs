@@ -104,6 +104,7 @@ class JniBridge
         var generatedFilesMacOS = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetMacOSSourceGenerationParams(jdk));
 
         var androidZip = new ZipArchiveContents();
+        var versionFile = VersionControl.SetupWriteRevisionInfoFile(new NPath("artifacts").Combine("build.txt"));
         var androidToolchains = GetAndroidToolchains();
         foreach (var toolchain in androidToolchains)
         {
@@ -116,6 +117,7 @@ class JniBridge
             androidZip.AddFileToArchive(header, new NPath("include").Combine(header.FileName));
         }
         androidZip.AddFileToArchive(jnibridgeJar);
+        androidZip.AddFileToArchive(versionFile);
 
         var osxToolchain = ToolChain.Store.Mac().Sdk_10_13().x64();
         var osxConfig = new NativeProgramConfiguration(codegen, osxToolchain, false);
