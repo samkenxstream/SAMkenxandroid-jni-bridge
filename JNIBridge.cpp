@@ -148,7 +148,7 @@ bool CheckForExceptionError(JNIEnv* env) // Do we need to make this safer?
 		{
 			SetError(kJNI_EXCEPTION_THROWN, "java.lang.IllegalThreadStateException: Unable to determine exception message");
 
-			LocalFrame frame;
+			LocalScope frame;
 			jthrowable t = env->ExceptionOccurred();
 			env->ExceptionClear();
 			{
@@ -393,32 +393,32 @@ jlong GetDirectBufferCapacity(jobject byteBuffer)
 }
 
 // --------------------------------------------------------------------------------------
-// ThreadScope
+// LocalScope
 // --------------------------------------------------------------------------------------
-ThreadScope::ThreadScope()
+LocalScope::LocalScope()
+	: m_Env(jni::GetEnv())
+	, m_ScopeState(kStateError)
 {
-	m_NeedDetach = !jni::GetEnv();
+	if (nullptr == m_Env)
+	{
+		m_Env = AttachCurrentThread();
+		if (nullptr == m_Env)
+			FatalError("Failed to attach thread to Java");
+		else
+			m_ScopeState = kStateAttachedThread;
+	}
+	else if (0 == PushLocalFrame(kLocalFrameCapacity))
+		m_ScopeState = kStatePushedFrame;
+	else
+		FatalError("Out of memory: Unable to allocate local frame");
 }
 
-ThreadScope::~ThreadScope()
+LocalScope::~LocalScope()
 {
-	if (m_NeedDetach)
-		jni::DetachCurrentThread();
-}
-
-// --------------------------------------------------------------------------------------
-// LocalFrame
-// --------------------------------------------------------------------------------------
-LocalFrame::LocalFrame(jint capacity)
-{
-	m_FramePushed = PushLocalFrame(capacity) == 0;
-	if (!m_FramePushed)
-		FatalError("Out of memory: Unable to allocate local frame(64)");
-}
-LocalFrame::~LocalFrame()
-{
-	if (m_FramePushed)
+	if (m_ScopeState == kStatePushedFrame)
 		PopLocalFrame(NULL);
+	else if (m_ScopeState == kStateAttachedThread)
+		DetachCurrentThread();
 }
 
 }

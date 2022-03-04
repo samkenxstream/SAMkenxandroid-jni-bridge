@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <utility>
+#include <thread>
 
 #include "API.h"
 #include "Proxy.h"
@@ -17,7 +18,7 @@ int main(int,char**)
 	JavaVMInitArgs vm_args;
 	memset(&vm_args, 0, sizeof(vm_args));
 
-	char classPath[] = {"-Djava.class.path=build"};
+	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
 
 	JavaVMOption options[1];
 	options[0].optionString = classPath;
@@ -52,7 +53,7 @@ int main(int,char**)
 		jni::Initialize(*vm);
 		if ((env = jni::AttachCurrentThread()))
 		{
-			jni::LocalFrame frame;
+			jni::LocalScope frame;
 			jstring   helloWorldString             = env->NewStringUTF("JNI");
 			jclass    javaLangSystem               = env->FindClass("java/lang/System");
 			jclass    javaIoPrintStream            = env->FindClass("java/io/PrintStream");
@@ -67,7 +68,7 @@ int main(int,char**)
 
 	// Ops.h
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		jstring   helloWorldString             = env->NewStringUTF("Ops");
 		jclass    javaLangSystem               = env->FindClass("java/lang/System");
 		jclass    javaIoPrintStream            = env->FindClass("java/io/PrintStream");
@@ -99,7 +100,7 @@ int main(int,char**)
 	// Optimized version
 	gettimeofday(&start, NULL);
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		PrintStream out       = System::fOut();
 		Properties properties = System::GetProperties();
 		Enumeration keys       = properties.Keys();
@@ -130,7 +131,7 @@ int main(int,char**)
 	// Array Test
 	// -------------------------------------------------------------
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		jni::Array<int> test01(4, (int[]){1, 2, 3, 4});
 		for (int i = 0; i < test01.Length(); ++i)
 			printf("ArrayTest01[%d],", test01[i]);
@@ -228,12 +229,12 @@ int main(int,char**)
 	};
 
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		new KillMePleazeRunnable;
 	}
 	for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		jni::Array<int> array(1024*1024);
 		System::Gc();
 	}
@@ -289,7 +290,7 @@ int main(int,char**)
 		};
 
 		{
-			jni::LocalFrame frame;
+			jni::LocalScope frame;
 			MultipleInterfaces* testProxy = new MultipleInterfaces();
 
 			Runnable runnable = *testProxy;
@@ -304,7 +305,7 @@ int main(int,char**)
 		}
 		for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 		{
-			jni::LocalFrame frame;
+			jni::LocalScope frame;
 			jni::Array<int> array(1024*1024);
 			System::Gc();
 		}
@@ -316,7 +317,7 @@ int main(int,char**)
 	// Proxy Object Test
 	// -------------------------------------------------------------
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 		struct PretendRunnable : jni::Proxy<Runnable>
 		{
 			virtual void Run() {printf("%s\n", "hello world!!!!"); }
@@ -335,7 +336,7 @@ int main(int,char**)
 	// Move semantics
 	// -------------------------------------------------------------
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 
 		java::lang::Integer integer(1234);
 		java::lang::Integer integer_moved(std::move(integer));
@@ -367,7 +368,7 @@ int main(int,char**)
 	// Move semantics for String class
 	// -------------------------------------------------------------
 	{
-		jni::LocalFrame frame;
+		jni::LocalScope frame;
 
 		java::lang::String str("hello");
 		printf("Java string: %s\n", str.c_str());
@@ -392,6 +393,79 @@ int main(int,char**)
 		}
 
 		printf("Moved string via constructor: %s\n", str_ctor_moved.c_str());
+	}
+
+	// -------------------------------------------------------------
+	// LocalScope
+	// -------------------------------------------------------------
+	{
+		std::thread th([]{
+			JNIEnv* env = jni::GetEnv();
+			if (env != nullptr)
+			{
+				puts("Expected null JNIEnv prior to attach from thread");
+				abort();
+			}
+
+			puts("Attaching secondary thread");
+
+			{
+				jni::LocalScope scope;
+
+				env = jni::GetEnv();
+				if (env == nullptr)
+				{
+					puts("Expected not-null JNIEnv after attach from thread");
+					abort();
+				}
+
+				auto str = env->NewStringUTF("hello");
+				if (!str)
+				{
+					puts("Expected to create string in the attached thread");
+					abort();
+				}
+
+				{
+					jni::LocalScope nested;
+
+					env = jni::GetEnv();
+					if (env == nullptr)
+					{
+						puts("Expected not-null JNIEnv after attach second scope");
+						abort();
+					}
+
+					// test JNI works and also test LocalScope is also usable as JNIEnv
+					auto chars = nested->GetStringUTFChars(str, nullptr);
+					printf("Nested frame accesses outer frame string chars: %s\n", chars);
+					JNIEnv* jniEnv = nested;  // this should trigger implicit conversion operator
+					jniEnv->ReleaseStringUTFChars(str, chars);
+				}
+
+				env = jni::GetEnv();
+				if (env == nullptr)
+				{
+					puts("Expected not-null JNIEnv after second scope exited");
+					abort();
+				}
+
+				auto chars = env->GetStringUTFChars(str, nullptr);
+				printf("After destroying nested frame can still access string chars: %s\n", chars);
+				env->ReleaseStringUTFChars(str, chars);
+			}
+
+			env = jni::GetEnv();
+			if (env != nullptr)
+			{
+				puts("Expected null JNIEnv after destroying outer scope");
+				abort();
+			}
+
+			puts("Secondary thread now detached");
+		});
+
+		th.join();
 	}
 
 	printf("%s\n", "EOP");

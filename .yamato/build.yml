@@ -4,8 +4,11 @@ build_for_android:
     type: Unity::VM::osx
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
+  variables:
+    ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
   commands:
     - perl build.pl
+    - ./bee build:android:zip
   artifacts:
     artifacts:
       paths:
@@ -17,9 +20,12 @@ test_on_osx:
     type: Unity::VM::osx
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
+  variables:
+    ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
   commands:
-    - perl build-osx.pl
-    - make -f test/Makefile
+    - perl build.pl
+    - ./bee build:osx:test
+    - ./build/osx/test
 
 test_trigger:
   name: Tests Trigger

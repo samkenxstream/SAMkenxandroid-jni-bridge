@@ -90,27 +90,36 @@ jobject      NewDirectByteBuffer(void* buffer, jlong size);
 void*        GetDirectBufferAddress(jobject byteBuffer);
 jlong        GetDirectBufferCapacity(jobject byteBuffer);
 
-class ThreadScope
+class LocalScope
 {
 public:
-	ThreadScope();
-	~ThreadScope();
+	LocalScope();
+	LocalScope(const LocalScope&) = delete;
+	LocalScope& operator=(const LocalScope&) = delete;
+	~LocalScope();
 
+	operator JNIEnv*()
+	{
+		return m_Env;
+	}
+
+	JNIEnv* operator->()
+	{
+		return m_Env;
+	}
 private:
-	bool m_NeedDetach;
+	static const char kStateError = 0;
+	static const char kStateAttachedThread = 1;
+	static const char kStatePushedFrame = 2;
+	static const jint kLocalFrameCapacity = 64;
+
+	JNIEnv* m_Env;
+	unsigned char m_ScopeState;
 };
 
-class LocalFrame
-{
-public:
-	LocalFrame(jint capacity = 64);
-	~LocalFrame();
-
-private:
-	LocalFrame(const LocalFrame& frame);
-	LocalFrame& operator=(const LocalFrame& rhs);
-	bool m_FramePushed;
-};
+// For existing code still using two classes we had before
+typedef LocalScope ThreadScope;
+typedef LocalScope LocalFrame;
 
 // Some logic explanation
 // Only invoke function if thread can be attached
