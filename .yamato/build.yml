@@ -18,7 +18,7 @@ build_for_android_win:
   name: Build JNIBridge Windows (For Local Development)
   agent:
     type: Unity::VM
-    image: package-ci/win10:stable
+    image: cds-ops/win10-base:stable
     flavor: b1.xlarge
   variables:
     ANDROID_SDK_ROOT: C:\Users\tomas\android-sdk_auto
