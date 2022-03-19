@@ -1,5 +1,5 @@
-build_for_android:
-  name: Build JNIBridge
+build_for_android_osx:
+  name: Build JNIBridge OSX (For Publishing)
   agent:
     type: Unity::VM::osx
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
@@ -9,6 +9,22 @@ build_for_android:
   commands:
     - perl build.pl
     - ./bee build:android:zip
+  artifacts:
+    artifacts:
+      paths:
+        - build/builds.zip
+
+build_for_android_win:
+  name: Build JNIBridge Windows (For Local Development)
+  agent:
+    type: Unity::VM
+    image: package-ci/win10:stable
+    flavor: b1.xlarge
+  variables:
+    ANDROID_SDK_ROOT: C:\Users\tomas\android-sdk_auto
+  commands:
+    - perl build.pl
+    - bee build:android:zip
   artifacts:
     artifacts:
       paths:
