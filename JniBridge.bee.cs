@@ -9,6 +9,9 @@ using Bee.Toolchain.Android;
 using Bee.Toolchain.GNU;
 using Bee.Tools;
 using NiceIO;
+using Bee.ProjectGeneration.VisualStudio;
+using Bee.VisualStudioSolution;
+using System.Linq;
 
 /**
  * Required environment variables:
@@ -26,6 +29,7 @@ using NiceIO;
  *   - build:android:zip - builds all 4 android archs above and zips them (THIS IS THE MAIN ONE)
  *   - build:osx:x86_64
  *   - build:osx:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
+ *   - ProjectFiles - generates IDE projects
  */
 class JniBridge
 {
@@ -107,6 +111,9 @@ class JniBridge
         "::java::lang::UnsupportedOperationException",
     };
 
+    private static NPath[] HeaderFiles => NPath.CurrentDirectory.Files("*.h");
+    private static NPath[] JavaFiles => NPath.CurrentDirectory.Combine("jnibridge/bitter/jnibridge").Files("*.java");
+
     static void Main()
     {
     	using var _ = new BuildProgramContext();
@@ -123,10 +130,12 @@ class JniBridge
         var androidZip = new ZipArchiveContents();
         var versionFile = VersionControl.SetupWriteRevisionInfoFile(new NPath("artifacts").Combine("build.txt"));
         var androidToolchains = GetAndroidToolchains();
+        var nativePrograms = new List<NativeProgram>();
         foreach (var toolchain in androidToolchains)
         {
             var androidConfig = new NativeProgramConfiguration(codegen, toolchain, false);
             var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain), androidZip);
+            nativePrograms.Add(np);
         }
         var headers = SetupJniBridgeHeaders(generatedFilesAndroid, "android");
         foreach (var header in headers)
@@ -144,6 +153,8 @@ class JniBridge
         var androidZipPath = "build/builds.zip";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
+
+        SetupGeneratedProjects(nativePrograms);
     }
 
     static Jdk SetupJava()
@@ -368,7 +379,7 @@ class JniBridge
         var includes = new NPath("build").Combine(platformName, "include");
 
         includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine("API.h"), generatedFilesDir.Combine("API.h")));
-        foreach (var file in NPath.CurrentDirectory.Files("*.h"))
+        foreach (var file in HeaderFiles)
             includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine(file.FileName), file));
 
         var incs = includeFiles.ToArray();
@@ -393,5 +404,80 @@ class JniBridge
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
         
         Backend.Current.AddAliasDependency("build:osx:test", target.Paths);
+    }
+
+    static string GetABI(Architecture architecture)
+    {
+        if (architecture == Architecture.Armv7)
+            return "armeabi-v7a";
+        if (architecture == Architecture.Arm64)
+            return "arm64-v8a";
+        if (architecture == Architecture.x86)
+            return "x86";
+        if (architecture == Architecture.x64)
+            return "x86_64";
+        throw new NotImplementedException(architecture.ToString());
+    }
+
+    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs)
+    {
+        var sln = new VisualStudioSolution();
+
+
+        // Not entirely sure, but I think there's should have been only NativeProgram with different architectures.
+        // Yet we have 4
+        // For now pick the first one, since it will be enough for editing purposes
+
+        var nativeProgram = programs[0];
+        var ndkToolchain = (AndroidNdkToolchain)nativeProgram.SetupConfigurations.FirstOrDefault().ToolChain;
+        var ndkIncludePath = ndkToolchain.Sdk.Path.ResolveWithFileSystem().Combine("sysroot/usr/include");
+        
+        var jniBridgeNP = new NativeProgram("JNIBridge");
+        nativeProgram.Sources.CopyTo(jniBridgeNP.Sources);
+        nativeProgram.IncludeDirectories.CopyTo(jniBridgeNP.IncludeDirectories);
+        nativeProgram.Defines.CopyTo(jniBridgeNP.Defines);
+
+        jniBridgeNP.IncludeDirectories.Add(ndkIncludePath);
+
+        var configs = new List<NativeProgramConfiguration>();
+        foreach (var p in programs)
+        {
+            configs.AddRange(p.SetupConfigurations.ToArray());
+        }
+
+        jniBridgeNP.ValidConfigurations = configs;
+        jniBridgeNP.OutputName.Set(string.Empty);
+        jniBridgeNP.CommandToBuild.Set(c =>
+        {
+            var architecture = ((AndroidNdkToolchain)c.ToolChain).Architecture;
+            return $"bee build:android:{GetABI(architecture)}";
+        });
+
+        foreach (var config in configs)
+        {
+            var architecture = ((AndroidNdkToolchain)config.ToolChain).Architecture;
+
+            sln.Configurations.Add(new SolutionConfiguration(GetABI(architecture), (configurations, file) =>
+            {
+                var firstOrDefault = configurations.FirstOrDefault(c => c == config);
+                return new Tuple<IProjectConfiguration, bool>(
+                    firstOrDefault ?? configurations.First(),
+                    true);
+            }));
+        }
+        var extraFiles = new List<NPath>();
+        extraFiles.AddRange(HeaderFiles);
+        extraFiles.AddRange(JavaFiles);
+
+        var builder = new VisualStudioNativeProjectFileBuilder(jniBridgeNP, extraFiles);
+        builder = jniBridgeNP.ValidConfigurations.Aggregate(
+            builder,
+            (current, c) => current.AddProjectConfiguration(c)
+            );
+
+        var project = builder.DeployTo("JNIBridge.vcxproj");
+
+        sln.Projects.Add(project);
+        Backend.Current.AddAliasDependency("ProjectFiles", sln.Setup());
     }
 }
