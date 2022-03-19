@@ -450,7 +450,8 @@ class JniBridge
         jniBridgeNP.CommandToBuild.Set(c =>
         {
             var architecture = ((AndroidNdkToolchain)c.ToolChain).Architecture;
-            return $"bee build:android:{GetABI(architecture)}";
+            return $@"set ANDROID_SDK_ROOT={SetupAndroidSdk()}
+bee build:android:{GetABI(architecture)}";
         });
 
         foreach (var config in configs)
