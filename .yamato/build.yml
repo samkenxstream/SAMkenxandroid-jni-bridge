@@ -56,4 +56,6 @@ test_trigger:
       only:
         - "/.*/"
   dependencies:
+    - .yamato/build.yml#build_for_android_osx
+    - .yamato/build.yml#build_for_android_win
     - .yamato/build.yml#test_on_osx
