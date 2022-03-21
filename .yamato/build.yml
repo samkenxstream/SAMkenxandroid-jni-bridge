@@ -7,8 +7,7 @@ build_for_android_osx:
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
   commands:
-    - perl build.pl
-    - ./bee build:android:zip
+    - perl build.pl jnibridge
   artifacts:
     artifacts:
       paths:
@@ -23,8 +22,7 @@ build_for_android_win:
   variables:
     ANDROID_SDK_ROOT: C:\Users\tomas\android-sdk_auto
   commands:
-    - perl build.pl
-    - bee build:android:zip
+    - perl build.pl jnibridge
   artifacts:
     artifacts:
       paths:
@@ -39,9 +37,7 @@ test_on_osx:
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
   commands:
-    - perl build.pl
-    - ./bee build:osx:test
-    - ./build/osx/test
+    - perl build.pl test
 
 test_trigger:
   name: Tests Trigger
