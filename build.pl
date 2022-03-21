@@ -118,7 +118,7 @@ sub ZipIt
 my $stringBuildJniBridgeAndZipIt = "Build JNIBridge and Zip It";
 my $stringBuildJniBridge = "Build JNIBridge";
 my $stringGenerateVSProjectFiles = "Generate Visual Studio project files";
-my $stringTestOnOSX = "Test JNIBridge (only works on OSX)";
+my $stringTestOnOSX = "Test JNIBridge";
 my $stringHelp = "Show command line arguments";
 my @abis = ("armeabi-v7a", "arm64-v8a", "x86", "x86_64");     
 
@@ -282,8 +282,17 @@ while (1)
 	{
 		print("Building and testing JNIBridge\n");
 		Prepare();
-		system("${Bee} build:osx:test") && die("Couldn't build JNIBridge for testing");
-		system("build/osx/test") && die("Test failed");
+		
+		if (lc $^O eq 'darwin')
+		{
+			system("${Bee} build:osx:test") && die("Couldn't build JNIBridge for testing");
+			system("./build/osx/test") && die("Test failed");
+		}
+		elsif (lc $^O eq 'mswin32')
+		{
+			system("${Bee} build:windows:test") && die("Couldn't build JNIBridge for testing");
+			system("./build/windows/test") && die("Test failed");
+		}
 	}
 	elsif ($arg1 eq "help")
 	{
