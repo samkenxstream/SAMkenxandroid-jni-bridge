@@ -122,6 +122,7 @@ class JniBridge
     };
 
     private static NPath[] HeaderFiles => NPath.CurrentDirectory.Files("*.h");
+    private static NPath[] CppFiles => NPath.CurrentDirectory.Files("*.cpp");
     private static NPath[] JavaFiles => NPath.CurrentDirectory.Combine("jnibridge/bitter/jnibridge").Files("*.java");
 
     static void Main()
@@ -393,8 +394,7 @@ class JniBridge
 
         var np = new NativeProgram(libParams.libName);
         np.Sources.Add(generatedSources);
-        var jniBridgeSources = NPath.CurrentDirectory.Files("*.cpp");
-        np.Sources.Add(jniBridgeSources);
+        np.Sources.Add(CppFiles);
         np.IncludeDirectories.Add(generatedFilesDir);
         np.ExtraDependenciesForAllObjectFiles.Add(generatedFilesDir);
         if (libParams.specialConfiguration != null)
@@ -530,6 +530,7 @@ bee build:android:{GetABI(architecture)}";
         }
         var extraFiles = new List<NPath>();
         extraFiles.AddRange(HeaderFiles);
+        extraFiles.AddRange(CppFiles);
         extraFiles.AddRange(JavaFiles);
 
         var builder = new VisualStudioNativeProjectFileBuilder(jniBridgeNP, extraFiles);
