@@ -483,8 +483,6 @@ class JniBridge
 
     static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram)
     {
-        var sln = new VisualStudioSolution();
-
         // Not entirely sure, but I think there's should have been only NativeProgram with different architectures.
         // Yet we have 4
         // For now pick the first one, since it will be enough for editing purposes
@@ -517,11 +515,12 @@ class JniBridge
 bee build:android:{GetABI(architecture)}";
         });
 
+        var jniBridgeSln = new VisualStudioSolution();
         foreach (var config in configs)
         {
             var architecture = ((AndroidNdkToolchain)config.ToolChain).Architecture;
 
-            sln.Configurations.Add(new SolutionConfiguration(GetABI(architecture), (configurations, file) =>
+            jniBridgeSln.Configurations.Add(new SolutionConfiguration(GetABI(architecture), (configurations, file) =>
             {
                 var firstOrDefault = configurations.FirstOrDefault(c => c == config);
                 return new Tuple<IProjectConfiguration, bool>(
@@ -539,7 +538,8 @@ bee build:android:{GetABI(architecture)}";
             (current, c) => current.AddProjectConfiguration(c)
             );
 
-        sln.Projects.Add(builder.DeployTo("JNIBridge.vcxproj"));
+        
+        jniBridgeSln.Projects.Add(builder.DeployTo("JNIBridge.vcxproj"));
 
         testingProgram.CommandToBuild.Set(c =>
         {
@@ -552,8 +552,10 @@ bee build:windows:test";
             (current, c) => current.AddProjectConfiguration(c)
             );
 
-        sln.Projects.Add(builder.DeployTo("JNIBridgeTests.vcxproj"));
+        var jniBridgeTestsSln = new VisualStudioSolution();
+        jniBridgeTestsSln.Projects.Add(builder.DeployTo("JNIBridgeTests.vcxproj"));
 
-        Backend.Current.AddAliasDependency("projectfiles", sln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", jniBridgeSln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", jniBridgeTestsSln.Setup());
     }
 }
