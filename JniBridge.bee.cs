@@ -29,8 +29,10 @@ using System.Linq;
  *   - build:android:zip - builds all 4 android archs above and zips them (THIS IS THE MAIN ONE)
  *   - build:osx:x86_64
  *   - build:osx:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
- *   - ProjectFiles - generates IDE projects
+ *   - projectfiles - generates IDE projects
  */
+
+
 class JniBridge
 {
     const string kAndroidApi = "android-31";
@@ -479,6 +481,6 @@ bee build:android:{GetABI(architecture)}";
         var project = builder.DeployTo("JNIBridge.vcxproj");
 
         sln.Projects.Add(project);
-        Backend.Current.AddAliasDependency("ProjectFiles", sln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", sln.Setup());
     }
 }
