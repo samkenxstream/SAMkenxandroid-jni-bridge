@@ -286,12 +286,12 @@ while (1)
 		if (lc $^O eq 'darwin')
 		{
 			system("${Bee} build:osx:test") && die("Couldn't build JNIBridge for testing");
-			system("./build/osx/test") && die("Test failed");
+			system("./build/osx/JNIBridgeTests") && die("Test failed");
 		}
 		elsif (lc $^O eq 'mswin32')
 		{
 			system("${Bee} build:windows:test") && die("Couldn't build JNIBridge for testing");
-			system("./build/windows/test") && die("Test failed");
+			system("build/windows/JNIBridgeTests.exe") && die("Test failed");
 		}
 	}
 	elsif ($arg1 eq "help")
