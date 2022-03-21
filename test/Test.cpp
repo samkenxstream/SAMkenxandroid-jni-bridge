@@ -162,30 +162,27 @@ int main(int,char**)
 	// -------------------------------------------------------------
 	{
 		jni::LocalScope frame;
-		int ints[] = { 1, 2, 3, 4 };
-		jni::Array<int> test01(4, ints);
+		jni::Array<int> test01(4, (int[]) { 1, 2, 3, 4 });
 		for (int i = 0; i < test01.Length(); ++i)
 			printf("ArrayTest01[%d],", test01[i]);
 		printf("\n");
 
-		java::lang::Integer integers[] = { 1, 2, 3, 4 };
-		jni::Array<java::lang::Integer> test02(4, integers);
+		jni::Array<java::lang::Integer> test02(4, (java::lang::Integer[]) { 1, 2, 3, 4 });
 		for (int i = 0; i < test02.Length(); ++i)
 			printf("ArrayTest02[%d],", test02[i].IntValue());
 		printf("\n");
 
-		jobject objects[] = { java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4) };
-		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, objects);
+		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, (jobject[]) { java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4) });
 		for (int i = 0; i < test03.Length(); ++i)
 			printf("ArrayTest03[%d],", java::lang::Integer(test03[i]).IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, integers);
+		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, (java::lang::Integer[]) { 1, 2, 3, 4 });
 		for (int i = 0; i < test04.Length(); ++i)
 			printf("ArrayTest04[%d],", java::lang::Integer(test04[i]).IntValue());
 		printf("\n");
 
-		jni::Array<int> test05(4, integers);
+		jni::Array<int> test05(4, (java::lang::Integer[]) { 1, 2, 3, 4 });
 		for (int i = 0; i < test05.Length(); ++i)
 			printf("ArrayTest05[%d],", test05[i]);
 		printf("\n");
