@@ -20,7 +20,7 @@ build_for_android_win:
     image: cds-ops/win10-base:stable
     flavor: b1.xlarge
   variables:
-    ANDROID_SDK_ROOT: C:\Users\tomas\android-sdk_auto
+    ANDROID_SDK_ROOT: C:\Users\bokken\android-sdk_auto
   commands:
     - perl build.pl jnibridge
   artifacts:
@@ -33,6 +33,17 @@ test_on_osx:
   agent:
     type: Unity::VM::osx
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    flavor: b1.xlarge
+  variables:
+    ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
+  commands:
+    - perl build.pl test
+
+test_on_win:
+  name: Test on Windows
+  agent:
+    type: Unity::VM
+    image: cds-ops/win10-base:stable
     flavor: b1.xlarge
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
@@ -55,3 +66,4 @@ test_trigger:
     - .yamato/build.yml#build_for_android_osx
     - .yamato/build.yml#build_for_android_win
     - .yamato/build.yml#test_on_osx
+    - .yamato/build.yml#test_on_win
