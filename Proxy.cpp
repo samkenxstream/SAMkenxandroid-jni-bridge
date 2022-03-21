@@ -105,29 +105,37 @@ void ProxyObject::DisableInstance(jobject proxy)
 
 ProxyTracker::ProxyTracker()
 {
+#ifdef WINDOWS
+	InitializeCriticalSectionAndSpinCount(&lock, 200);
+#else
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&lock, &attr);
 	pthread_mutexattr_destroy(&attr);
+#endif
 	head = NULL;
 }
 
 ProxyTracker::~ProxyTracker()
 {
+#ifdef WINDOWS
+	DeleteCriticalSection(&lock);
+#else
 	pthread_mutex_destroy(&lock);
+#endif
 }
 
 void ProxyTracker::StartTracking(ProxyObject* obj)
 {
-	pthread_mutex_lock(&lock);
+	Lock();
 	head = new LinkedProxy(obj, head);
-	pthread_mutex_unlock(&lock);
+	Unlock();
 }
 
 void ProxyTracker::StopTracking(ProxyObject* obj)
 {
-	pthread_mutex_lock(&lock);
+	Lock();
 	LinkedProxy* current = head;
 	LinkedProxy* previous = NULL;
 	while (current != NULL && current->obj != obj)
@@ -144,12 +152,12 @@ void ProxyTracker::StopTracking(ProxyObject* obj)
 			previous->next = current->next;
 		delete current;
 	}
-	pthread_mutex_unlock(&lock);
+	Unlock();
 }
 
 void ProxyTracker::DeleteAllProxies()
 {
-	pthread_mutex_lock(&lock);
+	Lock();
 	LinkedProxy* current = head;
 	head = NULL; // Destructor will call StopTracking, this will prevent it from looping through the whole list
 	while (current != NULL)
@@ -159,7 +167,25 @@ void ProxyTracker::DeleteAllProxies()
 		delete previous->obj;
 		delete previous;
 	}
+	Unlock();
+}
+
+void ProxyTracker::Lock()
+{
+#ifdef WINDOWS
+	EnterCriticalSection(&lock);
+#else
+	pthread_mutex_lock(&lock);
+#endif
+}
+
+void ProxyTracker::Unlock()
+{
+#ifdef WINDOWS
+	LeaveCriticalSection(&lock);
+#else
 	pthread_mutex_unlock(&lock);
+#endif
 }
 
 }

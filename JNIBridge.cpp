@@ -1,26 +1,47 @@
 #include "JNIBridge.h"
 #include <stdlib.h>
 #include <string.h>
+#ifdef WINDOWS
+#include <windows.h>
+#else
 #include <pthread.h>
+#endif
 
 namespace jni
 {
 
 // __thread is not supported on android (dynamic linker) :(
-template <typename T>
-class TLS
-{
-public:
-	TLS()  { pthread_key_create(&m_Key, free); }
-	~TLS() { pthread_key_delete(m_Key); }
-	inline operator T () const { return static_cast<T>(pthread_getspecific(m_Key)); }
-	inline T operator = (const T value) { pthread_setspecific(m_Key, value); return value; }
-private:
-	TLS(const TLS& tls);
-	TLS<T> operator = (const TLS<T>&);
-private:
-	pthread_key_t m_Key;
-};
+#if WINDOWS
+	template <typename T>
+	class TLS
+	{
+	public:
+		TLS() { m_Key = TlsAlloc(); }
+		~TLS() { TlsFree(m_Key); }
+		inline operator T () const { return static_cast<T>(TlsGetValue(m_Key)); }
+		inline T operator = (const T value) { TlsSetValue(m_Key, value); return value; }
+	private:
+		TLS(const TLS& tls);
+		TLS<T> operator = (const TLS<T>&);
+	private:
+		DWORD m_Key;
+	};
+#else
+	template <typename T>
+	class TLS
+	{
+	public:
+		TLS()  { pthread_key_create(&m_Key, free); }
+		~TLS() { pthread_key_delete(m_Key); }
+		inline operator T () const { return static_cast<T>(pthread_getspecific(m_Key)); }
+		inline T operator = (const T value) { pthread_setspecific(m_Key, value); return value; }
+	private:
+		TLS(const TLS& tls);
+		TLS<T> operator = (const TLS<T>&);
+	private:
+		pthread_key_t m_Key;
+	};
+#endif
 
 static JavaVM*     g_JavaVM;
 

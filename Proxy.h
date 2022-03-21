@@ -1,7 +1,9 @@
 #pragma once
 
 #include "API.h"
+#if !defined(WINDOWS)
 #include <pthread.h>
+#endif
 
 namespace jni
 {
@@ -54,14 +56,31 @@ private:
 	};
 
 	LinkedProxy* head;
+#ifdef WINDOWS
+	CRITICAL_SECTION lock;
+#else
 	pthread_mutex_t lock;
+#endif
+
+	void Lock();
+	void Unlock();
 };
+
+#if WINDOWS
+// Disable 'warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance'
+#pragma warning( disable : 4250)
+#endif
 
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 {	
 protected:
-	ProxyGenerator() : m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
+	ProxyGenerator() 
+#if WINDOWS
+		: m_ProxyObject(NewInstance(this, NULL, 0))
+#else
+		: m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
+#endif
 	{
 		proxyTracker.StartTracking(this);
 	}

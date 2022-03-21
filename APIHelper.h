@@ -2,6 +2,33 @@
 
 #include "JNIBridge.h"
 
+#if WINDOWS
+#include <Windows.h>
+
+#ifdef GetFreeSpace
+#undef GetFreeSpace
+#endif
+#ifdef Yield
+#undef Yield
+#endif
+
+inline int __sync_add_and_fetch(int volatile* i, int value)
+{
+	return _InterlockedExchangeAdd((long volatile*)i, value) + value;
+}
+
+inline int __sync_sub_and_fetch(int volatile* i, int value)
+{
+	return _InterlockedExchangeAdd((long volatile*)i, -value) - value;
+}
+
+inline void __sync_synchronize()
+{
+	MemoryBarrier();
+}
+
+#endif
+
 namespace jni
 {
 

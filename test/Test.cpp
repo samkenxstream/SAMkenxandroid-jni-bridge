@@ -1,15 +1,45 @@
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+
 #include <utility>
 #include <thread>
 
 #include "API.h"
 #include "Proxy.h"
 
+#if WINDOWS
+#include <windows.h>
+#include <stdint.h>
+#else
+#include <sys/time.h>
+#endif
+
 using namespace java::lang;
 using namespace java::io;
 using namespace java::util;
+
+#if WINDOWS
+int gettimeofday(struct timeval* tp, struct timezone* tzp)
+{
+	// Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+	// This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+	// until 00:00:00 January 1, 1970 
+	static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+
+	SYSTEMTIME  system_time;
+	FILETIME    file_time;
+	uint64_t    time;
+
+	GetSystemTime(&system_time);
+	SystemTimeToFileTime(&system_time, &file_time);
+	time = ((uint64_t)file_time.dwLowDateTime);
+	time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+	tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+	tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+	return 0;
+}
+#endif
 
 int main(int,char**)
 {
@@ -120,7 +150,7 @@ int main(int,char**)
 	java::lang::Object object = java::lang::Integer(23754);
 	if (jni::InstanceOf<java::lang::Number>(object) && jni::Cast<java::lang::Number>(object))
 	{
-		printf("%d\n", static_cast<int>(java::lang::Number(object)));
+		printf("%d\n", static_cast<jint>(java::lang::Number(object)));
 	}
 	else
 	{
@@ -132,27 +162,30 @@ int main(int,char**)
 	// -------------------------------------------------------------
 	{
 		jni::LocalScope frame;
-		jni::Array<int> test01(4, (int[]){1, 2, 3, 4});
+		int ints[] = { 1, 2, 3, 4 };
+		jni::Array<int> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
 			printf("ArrayTest01[%d],", test01[i]);
 		printf("\n");
 
-		jni::Array<java::lang::Integer> test02(4, (java::lang::Integer[]){1, 2, 3, 4});
+		java::lang::Integer integers[] = { 1, 2, 3, 4 };
+		jni::Array<java::lang::Integer> test02(4, integers);
 		for (int i = 0; i < test02.Length(); ++i)
 			printf("ArrayTest02[%d],", test02[i].IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, (jobject[]){java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4)});
+		jobject objects[] = { java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4) };
+		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, objects);
 		for (int i = 0; i < test03.Length(); ++i)
 			printf("ArrayTest03[%d],", java::lang::Integer(test03[i]).IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, (java::lang::Integer[]){1, 2, 3, 4});
+		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, integers);
 		for (int i = 0; i < test04.Length(); ++i)
 			printf("ArrayTest04[%d],", java::lang::Integer(test04[i]).IntValue());
 		printf("\n");
 
-		jni::Array<int> test05(4, (java::lang::Integer[]){1, 2, 3, 4});
+		jni::Array<int> test05(4, integers);
 		for (int i = 0; i < test05.Length(); ++i)
 			printf("ArrayTest05[%d],", test05[i]);
 		printf("\n");

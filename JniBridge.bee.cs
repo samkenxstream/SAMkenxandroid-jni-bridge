@@ -458,7 +458,6 @@ class JniBridge
         np.Libraries.Add(staticLib);
         var javaLibDir = jdk.JavaHome.Combine("lib");
         np.Libraries.Add(new StaticLibrary(javaLibDir.Combine("jvm.lib")));
-        np.CompilerSettings().Add(c => c.WithCustomFlags(new[] { $"/ZA" }));
 
         var destDir = new NPath("build").Combine(Platform.Windows);
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
@@ -509,10 +508,12 @@ class JniBridge
 
         jniBridgeNP.ValidConfigurations = configs;
         jniBridgeNP.OutputName.Set(string.Empty);
+
+        var setAndroidSDKRoot = $"set ANDROID_SDK_ROOT={SetupAndroidSdk()}";
         jniBridgeNP.CommandToBuild.Set(c =>
         {
             var architecture = ((AndroidNdkToolchain)c.ToolChain).Architecture;
-            return $@"set ANDROID_SDK_ROOT={SetupAndroidSdk()}
+            return $@"{setAndroidSDKRoot}
 bee build:android:{GetABI(architecture)}";
         });
 
@@ -542,7 +543,8 @@ bee build:android:{GetABI(architecture)}";
 
         testingProgram.CommandToBuild.Set(c =>
         {
-            return "bee build:windows:test";
+            return @$"{setAndroidSDKRoot}
+bee build:windows:test";
         });
         builder = new VisualStudioNativeProjectFileBuilder(testingProgram, extraFiles);
         builder = testingProgram.SetupConfigurations.Aggregate(
