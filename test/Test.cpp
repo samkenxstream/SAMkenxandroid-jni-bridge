@@ -14,6 +14,28 @@
 #include <sys/time.h>
 #endif
 
+#if WINDOWS
+namespace jni
+{
+	// While using jni::Array<int> array;
+	// It picks see reference to function template instantiation 'jni::Array<int>::Array(size_t,T)' being compiled 
+	// And since int::__CLASS doesn't exist it will fail to compile
+	// Not sure if it's a bug
+	template <>
+	class Array<int> : public ObjectArray<java::lang::Integer>
+	{
+	public:
+		explicit inline Array(jobject obj) : ObjectArray<java::lang::Integer>(obj) {};
+		explicit inline Array(jobjectArray obj) : ObjectArray<java::lang::Integer>(obj) {};
+		template<typename T>
+		explicit inline Array(size_t length, T initialElement = 0) : ObjectArray<java::lang::Integer>(java::lang::Integer::__CLASS, length, java::lang::Integer(initialElement)) {};
+		template<typename T2>
+		explicit inline Array(size_t length, T2* elements) : ObjectArray<java::lang::Integer>(java::lang::Integer::__CLASS, length, elements) {};
+	};
+}
+
+#endif
+
 using namespace java::lang;
 using namespace java::io;
 using namespace java::util;
@@ -40,6 +62,15 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp)
 	return 0;
 }
 #endif
+
+void AbortIfErrors(JNIEnv* env)
+{
+	if (env->ExceptionOccurred())
+	{
+		env->ExceptionDescribe();
+		exit(-1);
+	}
+}
 
 int main(int,char**)
 {
@@ -93,6 +124,8 @@ int main(int,char**)
 			env->CallVoidMethod(javaLangSystem_out, javaIoPrintStream_printlnMID, helloWorldString);
 			if ((error = jni::CheckError()))
 				printf("JNI %s\n", jni::GetErrorMessage());
+
+			AbortIfErrors(env);
 		}
 	}
 
@@ -108,6 +141,8 @@ int main(int,char**)
 		jni::Op<jvoid>::CallMethod(javaLangSystem_out, javaIoPrintStream_printlnMID, helloWorldString);
 		if ((error = jni::CheckError()))
 			printf("Ops %d:%s\n", error, jni::GetErrorMessage());
+
+		AbortIfErrors(env);
 	}
 
 	{
@@ -154,7 +189,7 @@ int main(int,char**)
 	}
 	else
 	{
-		int* p = 0; *p = 3;
+		exit(-1);
 	}
 
 	// -------------------------------------------------------------
@@ -162,27 +197,37 @@ int main(int,char**)
 	// -------------------------------------------------------------
 	{
 		jni::LocalScope frame;
-		jni::Array<int> test01(4, (int[]) { 1, 2, 3, 4 });
+		int ints[] = { 1, 2, 3, 4 };
+		jni::Array<int> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
 			printf("ArrayTest01[%d],", test01[i]);
 		printf("\n");
 
-		jni::Array<java::lang::Integer> test02(4, (java::lang::Integer[]) { 1, 2, 3, 4 });
+		java::lang::Integer integers1[] = { 1, 2, 3, 4 };
+		jni::Array<java::lang::Integer> test02(4, integers1);
 		for (int i = 0; i < test02.Length(); ++i)
 			printf("ArrayTest02[%d],", test02[i].IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, (jobject[]) { java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4) });
+		// Declared here, so they wouldn't destroy
+		java::lang::Integer one = 1;
+		java::lang::Integer two = 2;
+		java::lang::Integer three = 3;
+		java::lang::Integer four = 4;
+		jobject integers2[] = { one, two, three, four };
+		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, integers2);
 		for (int i = 0; i < test03.Length(); ++i)
 			printf("ArrayTest03[%d],", java::lang::Integer(test03[i]).IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, (java::lang::Integer[]) { 1, 2, 3, 4 });
+		java::lang::Integer integers3[] = { 1, 2, 3, 4 };
+		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, integers3);
 		for (int i = 0; i < test04.Length(); ++i)
 			printf("ArrayTest04[%d],", java::lang::Integer(test04[i]).IntValue());
 		printf("\n");
 
-		jni::Array<int> test05(4, (java::lang::Integer[]) { 1, 2, 3, 4 });
+		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
+		jni::Array<int> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
 			printf("ArrayTest05[%d],", test05[i]);
 		printf("\n");
@@ -197,6 +242,8 @@ int main(int,char**)
 			printf("ArrayTest11[%d],", java::lang::Integer(test11[i]).IntValue());
 		printf("\n");
 	}
+
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// Proxy test
@@ -248,6 +295,7 @@ int main(int,char**)
 		perfRunnable.Run();
 	gettimeofday(&stop, NULL);
 	printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// Weak Proxy Test
@@ -262,12 +310,15 @@ int main(int,char**)
 		jni::LocalScope frame;
 		new KillMePleazeRunnable;
 	}
+	AbortIfErrors(env);
+
 	for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 	{
 		jni::LocalScope frame;
-		jni::Array<int> array(1024*1024);
+		jni::Array<int> array(1024*1024, 0);
 		System::Gc();
 	}
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// Multiple Proxy Interface Test
@@ -336,12 +387,14 @@ int main(int,char**)
 		for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 		{
 			jni::LocalScope frame;
-			jni::Array<int> array(1024*1024);
+			jni::Array<int> array(1024*1024, 0);
 			System::Gc();
 		}
 
 		printf("%s", "end of multi interface test\n");
 	}
+
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// Proxy Object Test
@@ -361,6 +414,7 @@ int main(int,char**)
 		printf("toString: %s\n", runnable.ToString().c_str());
 	}
 
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// Move semantics
@@ -394,6 +448,8 @@ int main(int,char**)
 		printf("Value of copy-assigned integer: %d\n", static_cast<jint>(integer));
 	}
 
+	AbortIfErrors(env);
+
 	// -------------------------------------------------------------
 	// Move semantics for String class
 	// -------------------------------------------------------------
@@ -424,6 +480,7 @@ int main(int,char**)
 
 		printf("Moved string via constructor: %s\n", str_ctor_moved.c_str());
 	}
+	AbortIfErrors(env);
 
 	// -------------------------------------------------------------
 	// LocalScope
@@ -499,6 +556,8 @@ int main(int,char**)
 	}
 
 	printf("%s\n", "EOP");
+
+	AbortIfErrors(env);
 
 	// print resolution of clock()
 	jni::DetachCurrentThread();

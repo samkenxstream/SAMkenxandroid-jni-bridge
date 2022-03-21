@@ -472,7 +472,9 @@ class JniBridge
         var targetPdb = Backend.Current.SetupCopyFile(server.Combine(pdbName), destDir.Combine(pdbName));
         var targetJar = Backend.Current.SetupCopyFile(server.Combine("jnibridge.jar"), "build/jnibridge.jar");
         var script = destDir.Combine("runtests.cmd");
-        Backend.Current.AddWriteTextAction(script, $@"call {targetExe.MakeAbsolute().InQuotes()}
+        Backend.Current.AddWriteTextAction(script, $@"echo off
+echo Launching tests
+{targetExe.MakeAbsolute().InQuotes()}
 echo Exited with code %ERRORLEVEL%
 exit %ERRORLEVEL%
 ");
