@@ -445,7 +445,7 @@ class JniBridge
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
         
-        Backend.Current.AddAliasDependency($"build:${Platform.OSX}:test", target.Paths);
+        Backend.Current.AddAliasDependency($"build:{Platform.OSX}:test", target.Paths);
     }
 
     static NativeProgram SetupTestProgramWindows(ToolChain toolchain, NativeProgram staticLib, CodeGen codegen, NPath generatedFilesDir, Jdk jdk)
