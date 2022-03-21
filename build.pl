@@ -235,7 +235,6 @@ while (1)
 		else
 		{
 			my $foundCorrectABI = 0;
-			Prepare();
 			foreach my $abi ( @abis ) 
 			{
 				if ($arg2 eq $abi)
