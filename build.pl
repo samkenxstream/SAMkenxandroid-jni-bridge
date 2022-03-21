@@ -291,7 +291,7 @@ while (1)
 		elsif (lc $^O eq 'mswin32')
 		{
 			system("${Bee} build:windows:test") && die("Couldn't build JNIBridge for testing");
-			system("build/windows/JNIBridgeTests.exe") && die("Test failed");
+			system("build\\windows\\runtests.cmd") && die("Test failed");
 		}
 	}
 	elsif ($arg1 eq "help")

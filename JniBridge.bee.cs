@@ -157,15 +157,17 @@ class JniBridge
         androidZip.AddFileToArchive(jnibridgeJar);
         androidZip.AddFileToArchive(versionFile);
 
+
+        var codegenForTests = CodeGen.Debug;
         var osxToolchain = ToolChain.Store.Mac().Sdk_10_13().x64();
-        var osxConfig = new NativeProgramConfiguration(codegen, osxToolchain, false);
+        var osxConfig = new NativeProgramConfiguration(codegenForTests, osxToolchain, false);
         var osxStaticLib = SetupJniBridgeStaticLib(generatedFilesMacOS, osxConfig, GetMacOSStaticLibParams(osxToolchain, jdk));
-        SetupTestProgramOsx(osxToolchain, osxStaticLib, codegen, generatedFilesMacOS, jdk);
+        SetupTestProgramOsx(osxToolchain, osxStaticLib, codegenForTests, generatedFilesMacOS, jdk);
 
         var windowsToolchain = ToolChain.Store.Windows().VS2019().Sdk_18362().x64();
-        var windowsConfig = new NativeProgramConfiguration(codegen, windowsToolchain, false);
+        var windowsConfig = new NativeProgramConfiguration(codegenForTests, windowsToolchain, false);
         var windowsStaticLib = SetupJniBridgeStaticLib(generatedFilesWindows, windowsConfig, GetWindowsStaticLibParams(windowsToolchain, jdk));
-        var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegen, generatedFilesWindows, jdk);
+        var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk);
 
         var androidZipPath = "build/builds.zip";
         ZipTool.SetupPack(androidZipPath, androidZip);
@@ -463,7 +465,24 @@ class JniBridge
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
 
-        Backend.Current.AddAliasDependency($"build:{Platform.Windows}:test", target.Paths);
+        var exeName = np.Name + ".exe";
+        var pdbName = np.Name + ".pdb";
+        var server = jdk.JavaHome.Combine("jre/bin/server");
+        var targetExe = Backend.Current.SetupCopyFile(server.Combine(exeName), destDir.Combine(exeName));
+        var targetPdb = Backend.Current.SetupCopyFile(server.Combine(pdbName), destDir.Combine(pdbName));
+        var targetJar = Backend.Current.SetupCopyFile(server.Combine("jnibridge.jar"), "build/jnibridge.jar");
+        var script = destDir.Combine("runtests.cmd");
+        Backend.Current.AddWriteTextAction(script, $@"call {targetExe.MakeAbsolute().InQuotes()}
+echo Exited with code %ERRORLEVEL%
+exit %ERRORLEVEL%
+");
+
+        var targetPaths = new List<NPath>(target.Paths);
+        targetPaths.Add(targetExe);
+        targetPaths.Add(targetPdb);
+        targetPaths.Add(targetJar);
+        targetPaths.Add(script);
+        Backend.Current.AddAliasDependency($"build:{Platform.Windows}:test", targetPaths.ToArray());
 
         return np;
     }
