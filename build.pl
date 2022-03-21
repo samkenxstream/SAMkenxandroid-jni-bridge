@@ -150,6 +150,27 @@ sub ShowCommandLineArgs
 	print("build.pl help\n    ${stringHelp}\n\n");
 }
 
+sub GetBeeExecutable
+{
+    if (lc $^O eq 'darwin')
+    {
+        return "./bee";
+    }
+    elsif (lc $^O eq 'linux')
+    {
+        return "./bee";
+    }
+    elsif (lc $^O eq 'mswin32')
+    {
+        return "bee";
+    }
+    else
+    {
+        die "Coudln't get Bee executable for " . $^O;
+    }
+}
+
+my $Bee = GetBeeExecutable();
 my ($arg1, $arg2) = @ARGV;
 my $quitAfterCommand = 0;
 
@@ -230,7 +251,7 @@ while (1)
 		Prepare();
 		if (not defined $arg2)
 		{
-			system("bee build:android:zip") && die("Couldn't build JNIBridge");
+			system("${Bee} build:android:zip") && die("Couldn't build JNIBridge");
 		}
 		else
 		{
@@ -240,7 +261,7 @@ while (1)
 				if ($arg2 eq $abi)
 				{
 					$foundCorrectABI = 1;
-					system("bee build:android:${arg2}") && die("Couldn't build JNIBridge ${arg2}");
+					system("${Bee} build:android:${arg2}") && die("Couldn't build JNIBridge ${arg2}");
 				}
 			}
 			
@@ -255,13 +276,13 @@ while (1)
 	{
 		print("Generating Visual Studio Projects JNIBridge\n");
 		Prepare();
-		system("bee projectfiles") && die("Couldn't generate Visual Studio project files");
+		system("${Bee} projectfiles") && die("Couldn't generate Visual Studio project files");
 	}
 	elsif ($arg1 eq "test")
 	{
 		print("Building and testing JNIBridge\n");
 		Prepare();
-		system("bee build:osx:test") && die("Couldn't build JNIBridge for testing");
+		system("${Bee} build:osx:test") && die("Couldn't build JNIBridge for testing");
 		system("build/osx/test") && die("Test failed");
 	}
 	elsif ($arg1 eq "help")
