@@ -75,12 +75,7 @@ template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 {	
 protected:
-	ProxyGenerator() 
-#if WINDOWS
-		: m_ProxyObject(NewInstance(this, NULL, 0))
-#else
-		: m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
-#endif
+	ProxyGenerator() : m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
 	{
 		proxyTracker.StartTracking(this);
 	}
