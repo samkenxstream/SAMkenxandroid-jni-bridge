@@ -29,6 +29,8 @@ protected:
 
 // Factory stuff
 protected:
+	static jobject NewInstance(void* nativePtr, const jobject interfacce);
+	static jobject NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2);
 	static jobject NewInstance(void* nativePtr, const jobject* interfaces, size_t interfaces_len);
 	static void DisableInstance(jobject proxy);
 
@@ -66,17 +68,18 @@ private:
 	void Unlock();
 };
 
-#if WINDOWS
-// Disable 'warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance'
-#pragma warning( disable : 4250)
-#endif
-
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 {	
 protected:
-	ProxyGenerator() : m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
+	ProxyGenerator() 
+#if WINDOWS
+	: m_ProxyObject(NewInstance(this, TX::__CLASS...))
 	{
+#else
+	: m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
+	{
+#endif
 		proxyTracker.StartTracking(this);
 	}
 
