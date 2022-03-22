@@ -66,5 +66,4 @@ test_trigger:
     - .yamato/build.yml#build_for_android_osx
     - .yamato/build.yml#build_for_android_win
     - .yamato/build.yml#test_on_osx
-# Currently Tests for Windows don't compile
-#    - .yamato/build.yml#test_on_win
+    - .yamato/build.yml#test_on_win
