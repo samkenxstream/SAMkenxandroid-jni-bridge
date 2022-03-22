@@ -31,7 +31,7 @@ protected:
 protected:
 	static jobject NewInstance(void* nativePtr, const jobject interfacce);
 	static jobject NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2);
-	static jobject NewInstance(void* nativePtr, const jobject* interfaces, size_t interfaces_len);
+	static jobject NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len);
 	static void DisableInstance(jobject proxy);
 
 	static ProxyTracker proxyTracker;

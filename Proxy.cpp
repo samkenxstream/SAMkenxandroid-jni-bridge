@@ -89,7 +89,7 @@ bool ProxyObject::__TryInvoke(jclass clazz, jmethodID methodID, jobjectArray arg
 	return false;
 }
 
-jobject ProxyObject::NewInstance(void* nativePtr, const jobject* interfaces, size_t interfaces_len)
+jobject ProxyObject::NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len)
 {
 	Array<jobject> interfaceArray(java::lang::Class::__CLASS, interfaces_len, interfaces);
 
