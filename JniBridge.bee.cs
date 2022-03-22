@@ -173,7 +173,7 @@ class JniBridge
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
 
-        SetupGeneratedProjects(nativePrograms, windowsTestProgram, targetExecutable);
+        SetupGeneratedProjects(nativePrograms, windowsTestProgram, generatedFilesWindows, targetExecutable);
     }
 
     static Jdk SetupJava()
@@ -502,7 +502,7 @@ exit %ERRORLEVEL%
         throw new NotImplementedException(architecture.ToString());
     }
 
-    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram, NPath executableForTests)
+    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram, NPath generatedFilesDirectory, NPath executableForTests)
     {
         // Not entirely sure, but I think there's should have been only NativeProgram with different architectures.
         // Yet we have 4
@@ -568,7 +568,15 @@ bee build:android:{GetABI(architecture)}";
             return @$"{setAndroidSDKRoot}
 bee build:windows:test";
         });
-        builder = new VisualStudioNativeProjectFileBuilder(testingProgram, extraFiles);
+
+        var extraFilesForTests = new List<NPath>();
+        extraFilesForTests.AddRange(HeaderFiles);
+        extraFilesForTests.AddRange(CppFiles);
+        extraFilesForTests.AddRange(JavaFiles);
+        // Includes generated files for Windows, we don't want those in JNIBridge project since it builds for Android
+        extraFilesForTests.AddRange(generatedFilesDirectory.Files(true));
+
+        builder = new VisualStudioNativeProjectFileBuilder(testingProgram, extraFilesForTests);
         builder = testingProgram.SetupConfigurations.Aggregate(
             builder,
             (current, c) => current.AddProjectConfiguration(c)
