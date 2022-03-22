@@ -29,8 +29,8 @@ using System.Linq;
  *   - build:android:zip - builds all 4 android archs above and zips them (THIS IS THE MAIN ONE)
  *   - build:osx:x86_64
  *   - build:osx:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
- *   - build:win:x86_64
- *   - build:win:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
+ *   - build:windows:x86_64
+ *   - build:windows:test - builds the one above and the test program (run build\windows\runtests.cmd afterwards to run tests)
  *   - projectfiles - generates IDE projects
  */
 
@@ -39,7 +39,7 @@ class JniBridge
 {
     const string kAndroidApi = "android-31";
 
-    class Platform
+    static class Platform
     {
         public const string OSX = "osx";
         public const string Windows = "windows";
@@ -574,7 +574,8 @@ bee build:windows:test";
         extraFilesForTests.AddRange(CppFiles);
         extraFilesForTests.AddRange(JavaFiles);
         // Includes generated files for Windows, we don't want those in JNIBridge project since it builds for Android
-        extraFilesForTests.AddRange(generatedFilesDirectory.Files(true));
+        if (generatedFilesDirectory.DirectoryExists())
+            extraFilesForTests.AddRange(generatedFilesDirectory.Files(true));       
 
         builder = new VisualStudioNativeProjectFileBuilder(testingProgram, extraFilesForTests);
         builder = testingProgram.SetupConfigurations.Aggregate(
@@ -591,6 +592,7 @@ bee build:windows:test";
         Backend.Current.AddAliasDependency("projectfiles", jniBridgeSln.Setup());
         Backend.Current.AddAliasDependency("projectfiles", jniBridgeTestsSln.Setup());
         Backend.Current.AddAliasDependency("projectfiles", vsProjectUsersSettings);
+        Backend.Current.AddAliasDependency("projectfiles", generatedFilesDirectory);
     }
 
     static void GenerateVSUserSettings(NPath path, NPath executablePath)
