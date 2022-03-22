@@ -167,13 +167,13 @@ class JniBridge
         var windowsToolchain = ToolChain.Store.Windows().VS2019().Sdk_18362().x64();
         var windowsConfig = new NativeProgramConfiguration(codegenForTests, windowsToolchain, false);
         var windowsStaticLib = SetupJniBridgeStaticLib(generatedFilesWindows, windowsConfig, GetWindowsStaticLibParams(windowsToolchain, jdk));
-        var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk);
+        var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk, out var targetExecutable);
 
         var androidZipPath = "build/builds.zip";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
 
-        SetupGeneratedProjects(nativePrograms, windowsTestProgram);
+        SetupGeneratedProjects(nativePrograms, windowsTestProgram, targetExecutable);
     }
 
     static Jdk SetupJava()
@@ -450,7 +450,7 @@ class JniBridge
         Backend.Current.AddAliasDependency($"build:{Platform.OSX}:test", target.Paths);
     }
 
-    static NativeProgram SetupTestProgramWindows(ToolChain toolchain, NativeProgram staticLib, CodeGen codegen, NPath generatedFilesDir, Jdk jdk)
+    static NativeProgram SetupTestProgramWindows(ToolChain toolchain, NativeProgram staticLib, CodeGen codegen, NPath generatedFilesDir, Jdk jdk, out NPath targetExecutable)
     {
         var np = new NativeProgram("JNIBridgeTests");
         np.Sources.Add(new NPath("test").Files("*.cpp"));
@@ -468,19 +468,19 @@ class JniBridge
         var exeName = np.Name + ".exe";
         var pdbName = np.Name + ".pdb";
         var server = jdk.JavaHome.Combine("jre/bin/server");
-        var targetExe = Backend.Current.SetupCopyFile(server.Combine(exeName), destDir.Combine(exeName));
+        targetExecutable = Backend.Current.SetupCopyFile(server.Combine(exeName), destDir.Combine(exeName));
         var targetPdb = Backend.Current.SetupCopyFile(server.Combine(pdbName), destDir.Combine(pdbName));
         var targetJar = Backend.Current.SetupCopyFile(server.Combine("jnibridge.jar"), "build/jnibridge.jar");
         var script = destDir.Combine("runtests.cmd");
         Backend.Current.AddWriteTextAction(script, $@"echo off
 echo Launching tests
-{targetExe.MakeAbsolute().InQuotes()}
+{targetExecutable.MakeAbsolute().InQuotes()}
 echo Exited with code %ERRORLEVEL%
 exit %ERRORLEVEL%
 ");
 
         var targetPaths = new List<NPath>(target.Paths);
-        targetPaths.Add(targetExe);
+        targetPaths.Add(targetExecutable);
         targetPaths.Add(targetPdb);
         targetPaths.Add(targetJar);
         targetPaths.Add(script);
@@ -502,7 +502,7 @@ exit %ERRORLEVEL%
         throw new NotImplementedException(architecture.ToString());
     }
 
-    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram)
+    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram, NPath executableForTests)
     {
         // Not entirely sure, but I think there's should have been only NativeProgram with different architectures.
         // Yet we have 4
@@ -575,9 +575,26 @@ bee build:windows:test";
             );
 
         var jniBridgeTestsSln = new VisualStudioSolution();
-        jniBridgeTestsSln.Projects.Add(builder.DeployTo("JNIBridgeTests.vcxproj"));
+        var vsProject = builder.DeployTo("JNIBridgeTests.vcxproj");
+        jniBridgeTestsSln.Projects.Add(vsProject);
 
+        var vsProjectUsersSettings = (vsProject.Path + ".user").ToNPath();
+        GenerateVSUserSettings(vsProjectUsersSettings, executableForTests);
         Backend.Current.AddAliasDependency("projectfiles", jniBridgeSln.Setup());
         Backend.Current.AddAliasDependency("projectfiles", jniBridgeTestsSln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", vsProjectUsersSettings);
+    }
+
+    static void GenerateVSUserSettings(NPath path, NPath executablePath)
+    {
+        Backend.Current.AddWriteTextAction(path,
+$@"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""Current"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+  <PropertyGroup Condition=""'$(Configuration)|$(Platform)'=='debug_Win64_VS2019_nonlump|x64'"">
+    <LocalDebuggerCommand>{executablePath.MakeAbsolute()}</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>
+");
     }
 }
