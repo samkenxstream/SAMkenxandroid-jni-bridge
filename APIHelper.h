@@ -12,6 +12,8 @@
 #undef Yield
 #endif
 
+static_assert(sizeof(int) == sizeof(long), "long and int size must match.");
+
 inline int __sync_add_and_fetch(int volatile* i, int value)
 {
 	return _InterlockedExchangeAdd((long volatile*)i, value) + value;
