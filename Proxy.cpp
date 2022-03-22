@@ -9,7 +9,17 @@ ProxyTracker ProxyObject::proxyTracker;
 JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke(JNIEnv* env, jobject thiz, jlong ptr, jclass clazz, jobject method, jobjectArray args)
 {
 	jmethodID methodID = env->FromReflectedMethod(method);
-	ProxyInvoker* proxy = (ProxyInvoker*)ptr;
+	// Previous code looked like this
+	//    ProxyInvoker* proxy = (ProxyInvoker*)ptr;
+	// When running tests on Windows proxy->Invoke would call into ProxyObject::Equals
+	// I am not sure why, but my guess - it's because of multiple inheritance with virtual functions.
+	// Since the only class which implements __Invoke is ProxyObject, I think it's pretty safe
+	// to cast to ProxyObject instead of ProxyInvoker
+	// Note: there's also this warning on Windows
+	//     Proxy.h(104): warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance
+	// but even after fixing it, the call ProxyInvoker::__Invoke would still be incorrect, so I think the warning is inrelated, though again it points to virtual inheritance madness
+
+	ProxyObject* proxy = (ProxyObject*)ptr;
 	return proxy->__Invoke(clazz, methodID, args);
 }
 

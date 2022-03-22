@@ -27,9 +27,9 @@ inline void __sync_synchronize()
 	MemoryBarrier();
 }
 
-// Disable warnings like:
+// Keep enabled for now, so it would be visible
 // 1>E:\Projects\android-jni-bridge\Proxy.h(104): warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance
-#pragma warning( disable : 4250 )
+//#pragma warning( disable : 4250 )
 
 #endif
 
