@@ -59,11 +59,12 @@ int main(int,char**)
 
 	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
 
-	JavaVMOption options[1];
+	JavaVMOption options[3];
 	options[0].optionString = classPath;
+	options[1].optionString = "-Xcheck:jni";
 
 	vm_args.options = options;
-	vm_args.nOptions = 1;
+	vm_args.nOptions = 2;
 	vm_args.version = JNI_VERSION_1_6;
 	JNI_CreateJavaVM(&vm, &envPtr, &vm_args);
 
