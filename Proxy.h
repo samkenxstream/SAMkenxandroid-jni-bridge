@@ -1,9 +1,7 @@
 #pragma once
 
 #include "API.h"
-#if !defined(WINDOWS)
-#include <pthread.h>
-#endif
+#include <mutex>
 
 namespace jni
 {
@@ -58,14 +56,7 @@ private:
 	};
 
 	LinkedProxy* head;
-#ifdef WINDOWS
-	CRITICAL_SECTION lock;
-#else
-	pthread_mutex_t lock;
-#endif
-
-	void Lock();
-	void Unlock();
+	std::mutex lock;
 };
 
 template <class RefAllocator, class ...TX>
