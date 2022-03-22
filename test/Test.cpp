@@ -14,28 +14,6 @@
 #include <sys/time.h>
 #endif
 
-#if WINDOWS
-namespace jni
-{
-	// While using jni::Array<int> array;
-	// It picks see reference to function template instantiation 'jni::Array<int>::Array(size_t,T)' being compiled 
-	// And since int::__CLASS doesn't exist it will fail to compile
-	// Not sure if it's a bug
-	template <>
-	class Array<int> : public ObjectArray<java::lang::Integer>
-	{
-	public:
-		explicit inline Array(jobject obj) : ObjectArray<java::lang::Integer>(obj) {};
-		explicit inline Array(jobjectArray obj) : ObjectArray<java::lang::Integer>(obj) {};
-		template<typename T>
-		explicit inline Array(size_t length, T initialElement = 0) : ObjectArray<java::lang::Integer>(java::lang::Integer::__CLASS, length, java::lang::Integer(initialElement)) {};
-		template<typename T2>
-		explicit inline Array(size_t length, T2* elements) : ObjectArray<java::lang::Integer>(java::lang::Integer::__CLASS, length, elements) {};
-	};
-}
-
-#endif
-
 using namespace java::lang;
 using namespace java::io;
 using namespace java::util;
@@ -197,8 +175,8 @@ int main(int,char**)
 	// -------------------------------------------------------------
 	{
 		jni::LocalScope frame;
-		int ints[] = { 1, 2, 3, 4 };
-		jni::Array<int> test01(4, ints);
+		jint ints[] = { 1, 2, 3, 4 };
+		jni::Array<jint> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
 			printf("ArrayTest01[%d],", (jint)test01[i]);
 		printf("\n");
@@ -227,9 +205,9 @@ int main(int,char**)
 		printf("\n");
 
 		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
-		jni::Array<int> test05(4, integers4);
+		jni::Array<jint> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
-			printf("ArrayTest05[%d],", test05[i]);
+			printf("ArrayTest05[%d],", (jint)test05[i]);
 		printf("\n");
 
 		jni::Array<java::lang::Integer> test10(4, 4733);
@@ -315,7 +293,7 @@ int main(int,char**)
 	for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 	{
 		jni::LocalScope frame;
-		jni::Array<int> array(1024*1024, 0);
+		jni::Array<jint> array(1024*1024);
 		System::Gc();
 	}
 	AbortIfErrors(env);
@@ -384,10 +362,13 @@ int main(int,char**)
 				printf("%s\n", javaString.c_str());
 			}
 		}
+
+		AbortIfErrors(env);
+
 		for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 		{
 			jni::LocalScope frame;
-			jni::Array<int> array(1024*1024, 0);
+			jni::Array<jint> array(1024*1024);
 			System::Gc();
 		}
 
