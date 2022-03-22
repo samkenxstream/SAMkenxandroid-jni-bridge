@@ -368,9 +368,9 @@ void ReleaseStringUTFChars(jstring str, const char* utfchars)
 	JNI_CALL(str && utfchars, false, env->ReleaseStringUTFChars(str, utfchars));
 }
 
-size_t GetArrayLength(jarray obj)
+jsize GetArrayLength(jarray obj)
 {
-	JNI_CALL_RETURN(size_t, obj, true, env->GetArrayLength(obj));
+	JNI_CALL_RETURN(jsize, obj, true, env->GetArrayLength(obj));
 }
 
 jobjectArray NewObjectArray(jsize length, jclass elementClass, jobject initialElement)
@@ -378,12 +378,12 @@ jobjectArray NewObjectArray(jsize length, jclass elementClass, jobject initialEl
 	JNI_CALL_RETURN(jobjectArray, elementClass, true, env->NewObjectArray(length, elementClass, initialElement));
 }
 
-jobject GetObjectArrayElement(jobjectArray obj, size_t index)
+jobject GetObjectArrayElement(jobjectArray obj, jsize index)
 {
 	JNI_CALL_RETURN(jobject, obj, true, env->GetObjectArrayElement(obj, index));
 }
 
-void SetObjectArrayElement(jobjectArray obj, size_t index, jobject val)
+void SetObjectArrayElement(jobjectArray obj, jsize index, jobject val)
 {
 	JNI_CALL(obj, true, env->SetObjectArrayElement(obj, index, val));
 }
