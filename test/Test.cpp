@@ -14,6 +14,8 @@
 #include <sys/time.h>
 #endif
 
+#include <assert.h>
+
 using namespace java::lang;
 using namespace java::io;
 using namespace java::util;
@@ -41,17 +43,27 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp)
 }
 #endif
 
-void AbortIfErrors(JNIEnv* env)
+
+void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
 {
-	if (env->ExceptionOccurred())
+	if (env->ExceptionOccurred() )
 	{
 		env->ExceptionDescribe();
+		printf("%s at line %d\n", message, line);
 		exit(-1);
 	}
 }
 
+#define AbortIfErrors(Message) AbortIfErrorsImpl(env, Message, __LINE__);
+
 int main(int,char**)
 {
+#if WINDOWS
+	// Prevents asserts from showing a dialog
+	_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+#endif
 	JavaVM* vm;
 	void* envPtr;
 	JavaVMInitArgs vm_args;
@@ -104,7 +116,7 @@ int main(int,char**)
 			if ((error = jni::CheckError()))
 				printf("JNI %s\n", jni::GetErrorMessage());
 
-			AbortIfErrors(env);
+			AbortIfErrors("Failures related to AttachCurrentThread");
 		}
 	}
 
@@ -121,7 +133,7 @@ int main(int,char**)
 		if ((error = jni::CheckError()))
 			printf("Ops %d:%s\n", error, jni::GetErrorMessage());
 
-		AbortIfErrors(env);
+		AbortIfErrors("Failures related to basic JNI functions");
 	}
 
 	{
@@ -168,9 +180,8 @@ int main(int,char**)
 	}
 	else
 	{
-		exit(-1);
+		assert(!"Failed to get instance of java::lang::Number");
 	}
-
 	// -------------------------------------------------------------
 	// Array Test
 	// -------------------------------------------------------------
@@ -222,7 +233,7 @@ int main(int,char**)
 		printf("\n");
 	}
 
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with arrays");
 
 	// -------------------------------------------------------------
 	// Proxy test
@@ -274,7 +285,7 @@ int main(int,char**)
 		perfRunnable.Run();
 	gettimeofday(&stop, NULL);
 	printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with Runnable");
 
 	// -------------------------------------------------------------
 	// Weak Proxy Test
@@ -289,7 +300,7 @@ int main(int,char**)
 		jni::LocalScope frame;
 		new KillMePleazeRunnable;
 	}
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with Weak Proxy");
 
 	for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 	{
@@ -297,7 +308,7 @@ int main(int,char**)
 		jni::Array<jint> array(1024*1024);
 		System::Gc();
 	}
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with GC");
 
 	// -------------------------------------------------------------
 	// Multiple Proxy Interface Test
@@ -364,7 +375,7 @@ int main(int,char**)
 			}
 		}
 
-		AbortIfErrors(env);
+		AbortIfErrors("Failures with multiple interfaces");
 
 		for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 		{
@@ -376,7 +387,7 @@ int main(int,char**)
 		printf("%s", "end of multi interface test\n");
 	}
 
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with multiple interfaces");
 
 	// -------------------------------------------------------------
 	// Proxy Object Test
@@ -396,7 +407,7 @@ int main(int,char**)
 		printf("toString: %s\n", runnable.ToString().c_str());
 	}
 
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with Proxy Object Test");
 
 	// -------------------------------------------------------------
 	// Move semantics
@@ -430,7 +441,7 @@ int main(int,char**)
 		printf("Value of copy-assigned integer: %d\n", static_cast<jint>(integer));
 	}
 
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with move semantics");
 
 	// -------------------------------------------------------------
 	// Move semantics for String class
@@ -462,7 +473,7 @@ int main(int,char**)
 
 		printf("Moved string via constructor: %s\n", str_ctor_moved.c_str());
 	}
-	AbortIfErrors(env);
+	AbortIfErrors("Failures with string class");
 
 	// -------------------------------------------------------------
 	// LocalScope
@@ -539,7 +550,7 @@ int main(int,char**)
 
 	printf("%s\n", "EOP");
 
-	AbortIfErrors(env);
+	AbortIfErrors("Uncaught failure");
 
 	// print resolution of clock()
 	jni::DetachCurrentThread();
