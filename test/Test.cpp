@@ -59,7 +59,7 @@ int main(int,char**)
 
 	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
 
-	JavaVMOption options[3];
+	JavaVMOption options[2];
 	options[0].optionString = classPath;
 	options[1].optionString = "-Xcheck:jni";
 
