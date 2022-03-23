@@ -136,14 +136,13 @@ ProxyTracker::~ProxyTracker()
 
 void ProxyTracker::StartTracking(ProxyObject* obj)
 {
-	lock.lock();
+	std::lock_guard<std::mutex> guard(lock);
 	head = new LinkedProxy(obj, head);
-	lock.unlock();
 }
 
 void ProxyTracker::StopTracking(ProxyObject* obj)
 {
-	lock.lock();
+	std::lock_guard<std::mutex> guard(lock);
 	LinkedProxy* current = head;
 	LinkedProxy* previous = NULL;
 	while (current != NULL && current->obj != obj)
@@ -160,12 +159,11 @@ void ProxyTracker::StopTracking(ProxyObject* obj)
 			previous->next = current->next;
 		delete current;
 	}
-	lock.unlock();
 }
 
 void ProxyTracker::DeleteAllProxies()
 {
-	lock.lock();
+	std::lock_guard<std::mutex> guard(lock);
 	LinkedProxy* current = head;
 	head = NULL; // Destructor will call StopTracking, this will prevent it from looping through the whole list
 	while (current != NULL)
@@ -175,7 +173,6 @@ void ProxyTracker::DeleteAllProxies()
 		delete previous->obj;
 		delete previous;
 	}
-	lock.unlock();
 }
 
 }
