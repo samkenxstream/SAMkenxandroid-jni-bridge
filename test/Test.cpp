@@ -176,7 +176,7 @@ int main(int,char**)
 	java::lang::Object object = java::lang::Integer(23754);
 	if (jni::InstanceOf<java::lang::Number>(object) && jni::Cast<java::lang::Number>(object))
 	{
-		printf("%d\n", static_cast<jlong>(java::lang::Number(object)));
+		printf("%ld\n", static_cast<long>(java::lang::Number(object)));
 	}
 	else
 	{
