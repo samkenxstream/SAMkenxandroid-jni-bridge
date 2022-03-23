@@ -107,18 +107,6 @@ jobject ProxyObject::NewInstance(void* nativePtr, const jobject* interfaces, jsi
 	return  jni::Op<jobject>::CallStaticMethod(s_JNIBridgeClass, newProxyMID, (jlong) nativePtr, static_cast<jobjectArray>(interfaceArray));
 }
 
-jobject ProxyObject::NewInstance(void* nativePtr, const jobject interfacce)
-{
-	const jobject objects[] = { interfacce };
-	return NewInstance(nativePtr, objects, 1);
-}
-
-jobject ProxyObject::NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2)
-{
-	const jobject objects[] = { interfacce1, interfacce2 };
-	return NewInstance(nativePtr, objects, 2);
-}
-
 void ProxyObject::DisableInstance(jobject proxy)
 {
 	static jmethodID disableProxyMID = jni::GetStaticMethodID(s_JNIBridgeClass, "disableInterfaceProxy", "(Ljava/lang/Object;)V");
