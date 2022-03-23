@@ -63,7 +63,7 @@ template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 {	
 protected:
-	ProxyGenerator() : m_ProxyObject(CreateInstance<TX...>())
+	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
 		proxyTracker.StartTracking(this);
 	}
@@ -77,11 +77,9 @@ protected:
 	virtual ::jobject __ProxyObject() const { return m_ProxyObject; }
 
 private:
-	template<class ...TX>
-	jobject CreateInstance()
+	inline jobject CreateInstance()
 	{
 		jobject interfaces[] = { TX::__CLASS... };
-
 		return NewInstance(this, interfaces, sizeof...(TX));
 	}
 
