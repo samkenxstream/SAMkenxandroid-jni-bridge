@@ -190,7 +190,7 @@ int main(int,char**)
 		jint ints[] = { 1, 2, 3, 4 };
 		jni::Array<jint> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
-			printf("ArrayTest01[%d],", (jint)test01[i]);
+			printf("ArrayTest01[%d],", test01[i]);
 		printf("\n");
 
 		java::lang::Integer integers1[] = { 1, 2, 3, 4 };
