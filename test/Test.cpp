@@ -190,13 +190,13 @@ int main(int,char**)
 		jint ints[] = { 1, 2, 3, 4 };
 		jni::Array<jint> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
-			printf("ArrayTest01[%d],", test01[i]);
+			printf("ArrayTest01[%ld],", (long)test01[i]);
 		printf("\n");
 
 		java::lang::Integer integers1[] = { 1, 2, 3, 4 };
 		jni::Array<java::lang::Integer> test02(4, integers1);
 		for (int i = 0; i < test02.Length(); ++i)
-			printf("ArrayTest02[%d],", test02[i].IntValue());
+			printf("ArrayTest02[%ld],", (long)test02[i].IntValue());
 		printf("\n");
 
 		// Declared here, so they wouldn't destroy
@@ -207,29 +207,29 @@ int main(int,char**)
 		jobject integers2[] = { one, two, three, four };
 		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, integers2);
 		for (int i = 0; i < test03.Length(); ++i)
-			printf("ArrayTest03[%d],", java::lang::Integer(test03[i]).IntValue());
+			printf("ArrayTest03[%ld],", (long)java::lang::Integer(test03[i]).IntValue());
 		printf("\n");
 
 		java::lang::Integer integers3[] = { 1, 2, 3, 4 };
 		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, integers3);
 		for (int i = 0; i < test04.Length(); ++i)
-			printf("ArrayTest04[%d],", java::lang::Integer(test04[i]).IntValue());
+			printf("ArrayTest04[%ld],", (long)java::lang::Integer(test04[i]).IntValue());
 		printf("\n");
 
 		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
 		jni::Array<jint> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
-			printf("ArrayTest05[%d],", (jint)test05[i]);
+			printf("ArrayTest05[%ld],", (jint)test05[i]);
 		printf("\n");
 
 		jni::Array<java::lang::Integer> test10(4, 4733);
 		for (int i = 0; i < test10.Length(); ++i)
-			printf("ArrayTest10[%d],", test10[i].IntValue());
+			printf("ArrayTest10[%ld],", (long)test10[i].IntValue());
 		printf("\n");
 
 		jni::Array<jobject> test11(java::lang::Integer::__CLASS, 4, java::lang::Integer(4733));
 		for (int i = 0; i < test11.Length(); ++i)
-			printf("ArrayTest11[%d],", java::lang::Integer(test11[i]).IntValue());
+			printf("ArrayTest11[%ld],", (long)java::lang::Integer(test11[i]).IntValue());
 		printf("\n");
 	}
 
@@ -424,7 +424,7 @@ int main(int,char**)
 			abort();
 		}
 
-		printf("Value of moved integer: %d\n", static_cast<jint>(integer_moved));
+		printf("Value of moved integer: %ld\n", static_cast<long>(integer_moved));
 
 		java::lang::Integer integer_assigned(4321);
 		integer_assigned = std::move(integer_moved);
@@ -435,10 +435,10 @@ int main(int,char**)
 			abort();
 		}
 
-		printf("Value of move-assigned integer: %d\n", static_cast<jint>(integer_assigned));
+		printf("Value of move-assigned integer: %ld\n", static_cast<long>(integer_assigned));
 
 		integer = integer_assigned;
-		printf("Value of copy-assigned integer: %d\n", static_cast<jint>(integer));
+		printf("Value of copy-assigned integer: %ld\n", static_cast<long>(integer));
 	}
 
 	AbortIfErrors("Failures with move semantics");
