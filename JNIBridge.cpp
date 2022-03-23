@@ -43,7 +43,8 @@ namespace jni
 	};
 #endif
 
-static JavaVM*     g_JavaVM;
+static JavaVM*				g_JavaVM;
+static CallbackOverrides*	g_Overrides;
 
 jobject kNull(0);
 
@@ -106,9 +107,16 @@ static void ClearErrors()
 // --------------------------------------------------------------------------------------
 // Initialization and error functions (public)
 // --------------------------------------------------------------------------------------
-void Initialize(JavaVM& vm)
+void Initialize(JavaVM& vm, CallbackOverrides* overrides )
 {
 	g_JavaVM = &vm;
+	g_Overrides = overrides;
+}
+
+void Shutdown()
+{
+	g_JavaVM = NULL;
+	g_Overrides = NULL;
 }
 
 Errno PeekError()
@@ -251,7 +259,14 @@ void DetachCurrentThread()
 
 jclass FindClass(const char* name)
 {
-	JNI_CALL_RETURN(jclass, name, true, env->FindClass(name));
+	if (g_Overrides != NULL && g_Overrides->findClass != NULL)
+	{
+		JNI_CALL_RETURN(jclass, name, true, g_Overrides->findClass(env, name));
+	}
+	else
+	{
+		JNI_CALL_RETURN(jclass, name, true, env->FindClass(name));
+	}
 }
 
 jint Throw(jthrowable object)

@@ -12,6 +12,12 @@ typedef void* jvoid; // make it possible to return void
 
 namespace jni
 {
+	struct CallbackOverrides
+	{
+		typedef jclass(*FindClass)(JNIEnv*, const char*);
+
+		FindClass findClass;
+	};
 
 enum Errno
 {
@@ -26,7 +32,8 @@ extern jobject kNull;
 // --------------------------------------------------------------------------------------
 // Initialization and error functions
 // --------------------------------------------------------------------------------------
-void        Initialize(JavaVM& vm);
+void        Initialize(JavaVM& vm, CallbackOverrides* overrides = NULL);
+void		Shutdown();
 
 Errno       CheckError();
 Errno       PeekError();

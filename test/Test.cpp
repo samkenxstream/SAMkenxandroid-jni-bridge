@@ -1,3 +1,4 @@
+#include "Test.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,7 +55,7 @@ void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
 	}
 }
 
-#define AbortIfErrors(Message) AbortIfErrorsImpl(env, Message, __LINE__);
+void TestOverrides(JavaVM* vm, JNIEnv* env);
 
 int main(int,char**)
 {
@@ -82,6 +83,11 @@ int main(int,char**)
 
 	JNIEnv* env = (JNIEnv*)envPtr;
 
+	// Custom tests
+	TestOverrides(vm, env);
+	// ... add more
+
+	// Generic tests
 	jni::Initialize(*vm);
 
 	// ------------------------------------------------------------------------
