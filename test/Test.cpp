@@ -56,7 +56,7 @@ void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
 
 #define AbortIfErrors(Message) AbortIfErrorsImpl(env, Message, __LINE__);
 
-int main(int,char**)
+int main(int argc, char** argv)
 {
 #if WINDOWS
 	// Prevents asserts from showing a dialog
@@ -69,7 +69,13 @@ int main(int,char**)
 	JavaVMInitArgs vm_args;
 	memset(&vm_args, 0, sizeof(vm_args));
 
-	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
+	const char* jarPath = "build/jnibridge.jar";
+	if (argc > 1)
+		jarPath = argv[1];
+
+	printf("Jar Path = %s\n", jarPath);
+	char classPath[1024];
+	snprintf(classPath, sizeof(classPath), "-Djava.class.path=%s", jarPath);
 
 	JavaVMOption options[2];
 	options[0].optionString = classPath;
