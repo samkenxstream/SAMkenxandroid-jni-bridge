@@ -2,6 +2,39 @@
 
 #include "JNIBridge.h"
 
+#if WINDOWS
+#include <Windows.h>
+
+#ifdef GetFreeSpace
+#undef GetFreeSpace
+#endif
+#ifdef Yield
+#undef Yield
+#endif
+
+static_assert(sizeof(int) == sizeof(long), "long and int size must match.");
+
+inline int __sync_add_and_fetch(int volatile* i, int value)
+{
+	return _InterlockedExchangeAdd((long volatile*)i, value) + value;
+}
+
+inline int __sync_sub_and_fetch(int volatile* i, int value)
+{
+	return _InterlockedExchangeAdd((long volatile*)i, -value) - value;
+}
+
+inline void __sync_synchronize()
+{
+	MemoryBarrier();
+}
+
+// Keep enabled for now, so it would be visible
+// 1>E:\Projects\android-jni-bridge\Proxy.h(104): warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance
+//#pragma warning( disable : 4250 )
+
+#endif
+
 namespace jni
 {
 
@@ -149,7 +182,7 @@ protected:
 	explicit ArrayBase(jobject obj) : m_Array(static_cast<T>(obj)) {}
 
 public:
-	inline size_t Length() const { return m_Array != 0 ? jni::GetArrayLength(m_Array) : 0; }
+	inline jsize Length() const { return m_Array != 0 ? jni::GetArrayLength(m_Array) : 0; }
 
 	inline operator bool() const { return m_Array != 0; }
 	inline operator T() const { return m_Array; }
@@ -164,9 +197,9 @@ class PrimitiveArrayBase : public ArrayBase<AT>
 protected:
 	explicit PrimitiveArrayBase(AT obj)                      : ArrayBase<AT>(obj) {};
 	explicit PrimitiveArrayBase(jobject obj)                 : ArrayBase<AT>(obj) {};
-	explicit PrimitiveArrayBase(size_t length)               : ArrayBase<AT>(jni::Op<T>::NewArray(length)) {};
+	explicit PrimitiveArrayBase(jsize length)               : ArrayBase<AT>(jni::Op<T>::NewArray(length)) {};
 	template<typename T2>
-	explicit PrimitiveArrayBase(size_t length, T2* elements) : ArrayBase<AT>(jni::Op<T>::NewArray(length))
+	explicit PrimitiveArrayBase(jsize length, T2* elements) : ArrayBase<AT>(jni::Op<T>::NewArray(length))
 	{
 		T* array = jni::Op<T>::GetArrayElements(*this);
 		for (int i = 0; i < length; ++i)
@@ -210,9 +243,9 @@ class ObjectArray : public ArrayBase<jobjectArray>
 protected:
 	explicit inline ObjectArray(jobject obj)                                  : ArrayBase<jobjectArray>(obj) {};
 	explicit inline ObjectArray(jobjectArray obj)                             : ArrayBase<jobjectArray>(obj) {};
-	explicit inline ObjectArray(jclass type, size_t length, T initialElement) : ArrayBase<jobjectArray>(jni::NewObjectArray(length, type, initialElement)) {};
+	explicit inline ObjectArray(jclass type, jsize length, T initialElement) : ArrayBase<jobjectArray>(jni::NewObjectArray(length, type, initialElement)) {};
 	template<typename T2>
-	explicit inline ObjectArray(jclass type, size_t length, T2* elements)     : ArrayBase<jobjectArray>(jni::NewObjectArray(length, type, NULL))
+	explicit inline ObjectArray(jclass type, jsize length, T2* elements)     : ArrayBase<jobjectArray>(jni::NewObjectArray(length, type, NULL))
 	{
 		for (int i = 0; i < length; ++i)
 			jni::SetObjectArrayElement(*this, i, static_cast<T>(elements[i]));
@@ -247,9 +280,9 @@ class Array : public ObjectArray<T>
 public:
 	explicit inline Array(jobject obj)                         : ObjectArray<T>(obj) {};
 	explicit inline Array(jobjectArray obj)                    : ObjectArray<T>(obj) {};
-	explicit inline Array(size_t length, T initialElement = 0) : ObjectArray<T>(T::__CLASS, length, initialElement) {};
+	explicit inline Array(jsize length, T initialElement = 0) : ObjectArray<T>(T::__CLASS, length, initialElement) {};
 	template<typename T2>
-	explicit inline Array(size_t length, T2* elements)         : ObjectArray<T>(T::__CLASS, length, elements) {};
+	explicit inline Array(jsize length, T2* elements)         : ObjectArray<T>(T::__CLASS, length, elements) {};
 };
 
 template <>
@@ -259,9 +292,9 @@ public:
 	explicit inline Array(jobject obj)                                      : ObjectArray<jobject>(obj) {};
 	explicit inline Array(jobjectArray obj)                                 : ObjectArray<jobject>(obj) {};
 	template<typename T>
-	explicit inline Array(jclass type, size_t length, T initialElement = 0) : ObjectArray<jobject>(type, length, initialElement) {};
+	explicit inline Array(jclass type, jsize length, T initialElement = 0) : ObjectArray<jobject>(type, length, initialElement) {};
 	template<typename T2>
-	explicit inline Array(jclass type, size_t length, T2* elements)         : ObjectArray<jobject>(type, length, elements) {};
+	explicit inline Array(jclass type, jsize length, T2* elements)         : ObjectArray<jobject>(type, length, elements) {};
 };
 
 #define DEF_PRIMITIVE_ARRAY_TYPE(t) \
@@ -271,9 +304,9 @@ class Array<t> : public PrimitiveArrayBase<t, t##Array> \
 public: \
 	explicit inline Array(jobject   obj)               : PrimitiveArrayBase<t, t##Array>(obj) {}; \
 	explicit inline Array(t##Array  obj)               : PrimitiveArrayBase<t, t##Array>(obj) {}; \
-	explicit inline Array(size_t length)               : PrimitiveArrayBase<t, t##Array>(length) {}; \
+	explicit inline Array(jsize length)               : PrimitiveArrayBase<t, t##Array>(length) {}; \
 	template<typename T2> \
-	explicit inline Array(size_t length, T2* elements) : PrimitiveArrayBase<t, t##Array>(length, elements) {}; \
+	explicit inline Array(jsize length, T2* elements) : PrimitiveArrayBase<t, t##Array>(length, elements) {}; \
 };
 
 DEF_PRIMITIVE_ARRAY_TYPE(jboolean)

@@ -1,30 +1,88 @@
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+
 #include <utility>
 #include <thread>
 
 #include "API.h"
 #include "Proxy.h"
 
+#if WINDOWS
+#include <windows.h>
+#include <stdint.h>
+#else
+#include <sys/time.h>
+#endif
+
+#include <assert.h>
+
 using namespace java::lang;
 using namespace java::io;
 using namespace java::util;
 
-int main(int,char**)
+#if WINDOWS
+int gettimeofday(struct timeval* tp, struct timezone* tzp)
 {
+	// Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+	// This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+	// until 00:00:00 January 1, 1970 
+	static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+
+	SYSTEMTIME  system_time;
+	FILETIME    file_time;
+	uint64_t    time;
+
+	GetSystemTime(&system_time);
+	SystemTimeToFileTime(&system_time, &file_time);
+	time = ((uint64_t)file_time.dwLowDateTime);
+	time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+	tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+	tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+	return 0;
+}
+#endif
+
+
+void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
+{
+	if (env->ExceptionOccurred() )
+	{
+		env->ExceptionDescribe();
+		printf("%s at line %d\n", message, line);
+		exit(-1);
+	}
+}
+
+#define AbortIfErrors(Message) AbortIfErrorsImpl(env, Message, __LINE__);
+
+int main(int argc, char** argv)
+{
+#if WINDOWS
+	// Prevents asserts from showing a dialog
+	_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+#endif
 	JavaVM* vm;
 	void* envPtr;
 	JavaVMInitArgs vm_args;
 	memset(&vm_args, 0, sizeof(vm_args));
 
-	char classPath[] = {"-Djava.class.path=build/jnibridge.jar"};
+	const char* jarPath = "build/jnibridge.jar";
+	if (argc > 1)
+		jarPath = argv[1];
 
-	JavaVMOption options[1];
+	printf("Jar Path = %s\n", jarPath);
+	char classPath[1024];
+	snprintf(classPath, sizeof(classPath), "-Djava.class.path=%s", jarPath);
+
+	JavaVMOption options[2];
 	options[0].optionString = classPath;
+	options[1].optionString = "-Xcheck:jni";
 
 	vm_args.options = options;
-	vm_args.nOptions = 1;
+	vm_args.nOptions = 2;
 	vm_args.version = JNI_VERSION_1_6;
 	JNI_CreateJavaVM(&vm, &envPtr, &vm_args);
 
@@ -63,6 +121,8 @@ int main(int,char**)
 			env->CallVoidMethod(javaLangSystem_out, javaIoPrintStream_printlnMID, helloWorldString);
 			if ((error = jni::CheckError()))
 				printf("JNI %s\n", jni::GetErrorMessage());
+
+			AbortIfErrors("Failures related to AttachCurrentThread");
 		}
 	}
 
@@ -78,6 +138,8 @@ int main(int,char**)
 		jni::Op<jvoid>::CallMethod(javaLangSystem_out, javaIoPrintStream_printlnMID, helloWorldString);
 		if ((error = jni::CheckError()))
 			printf("Ops %d:%s\n", error, jni::GetErrorMessage());
+
+		AbortIfErrors("Failures related to basic JNI functions");
 	}
 
 	{
@@ -120,53 +182,64 @@ int main(int,char**)
 	java::lang::Object object = java::lang::Integer(23754);
 	if (jni::InstanceOf<java::lang::Number>(object) && jni::Cast<java::lang::Number>(object))
 	{
-		printf("%d\n", static_cast<int>(java::lang::Number(object)));
+		printf("%ld\n", static_cast<long>(java::lang::Number(object)));
 	}
 	else
 	{
-		int* p = 0; *p = 3;
+		assert(!"Failed to get instance of java::lang::Number");
 	}
-
 	// -------------------------------------------------------------
 	// Array Test
 	// -------------------------------------------------------------
 	{
 		jni::LocalScope frame;
-		jni::Array<int> test01(4, (int[]){1, 2, 3, 4});
+		jint ints[] = { 1, 2, 3, 4 };
+		jni::Array<jint> test01(4, ints);
 		for (int i = 0; i < test01.Length(); ++i)
-			printf("ArrayTest01[%d],", test01[i]);
+			printf("ArrayTest01[%ld],", (long)test01[i]);
 		printf("\n");
 
-		jni::Array<java::lang::Integer> test02(4, (java::lang::Integer[]){1, 2, 3, 4});
+		java::lang::Integer integers1[] = { 1, 2, 3, 4 };
+		jni::Array<java::lang::Integer> test02(4, integers1);
 		for (int i = 0; i < test02.Length(); ++i)
-			printf("ArrayTest02[%d],", test02[i].IntValue());
+			printf("ArrayTest02[%ld],", (long)test02[i].IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, (jobject[]){java::lang::Integer(1), java::lang::Integer(2), java::lang::Integer(3), java::lang::Integer(4)});
+		// Declared here, so they wouldn't destroy
+		java::lang::Integer one = 1;
+		java::lang::Integer two = 2;
+		java::lang::Integer three = 3;
+		java::lang::Integer four = 4;
+		jobject integers2[] = { one, two, three, four };
+		jni::Array<jobject> test03(java::lang::Integer::__CLASS, 4, integers2);
 		for (int i = 0; i < test03.Length(); ++i)
-			printf("ArrayTest03[%d],", java::lang::Integer(test03[i]).IntValue());
+			printf("ArrayTest03[%ld],", (long)java::lang::Integer(test03[i]).IntValue());
 		printf("\n");
 
-		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, (java::lang::Integer[]){1, 2, 3, 4});
+		java::lang::Integer integers3[] = { 1, 2, 3, 4 };
+		jni::Array<jobject> test04(java::lang::Integer::__CLASS, 4, integers3);
 		for (int i = 0; i < test04.Length(); ++i)
-			printf("ArrayTest04[%d],", java::lang::Integer(test04[i]).IntValue());
+			printf("ArrayTest04[%ld],", (long)java::lang::Integer(test04[i]).IntValue());
 		printf("\n");
 
-		jni::Array<int> test05(4, (java::lang::Integer[]){1, 2, 3, 4});
+		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
+		jni::Array<jint> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
-			printf("ArrayTest05[%d],", test05[i]);
+			printf("ArrayTest05[%ld],", (jint)test05[i]);
 		printf("\n");
 
 		jni::Array<java::lang::Integer> test10(4, 4733);
 		for (int i = 0; i < test10.Length(); ++i)
-			printf("ArrayTest10[%d],", test10[i].IntValue());
+			printf("ArrayTest10[%ld],", (long)test10[i].IntValue());
 		printf("\n");
 
 		jni::Array<jobject> test11(java::lang::Integer::__CLASS, 4, java::lang::Integer(4733));
 		for (int i = 0; i < test11.Length(); ++i)
-			printf("ArrayTest11[%d],", java::lang::Integer(test11[i]).IntValue());
+			printf("ArrayTest11[%ld],", (long)java::lang::Integer(test11[i]).IntValue());
 		printf("\n");
 	}
+
+	AbortIfErrors("Failures with arrays");
 
 	// -------------------------------------------------------------
 	// Proxy test
@@ -218,6 +291,7 @@ int main(int,char**)
 		perfRunnable.Run();
 	gettimeofday(&stop, NULL);
 	printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+	AbortIfErrors("Failures with Runnable");
 
 	// -------------------------------------------------------------
 	// Weak Proxy Test
@@ -232,12 +306,15 @@ int main(int,char**)
 		jni::LocalScope frame;
 		new KillMePleazeRunnable;
 	}
+	AbortIfErrors("Failures with Weak Proxy");
+
 	for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 	{
 		jni::LocalScope frame;
-		jni::Array<int> array(1024*1024);
+		jni::Array<jint> array(1024*1024);
 		System::Gc();
 	}
+	AbortIfErrors("Failures with GC");
 
 	// -------------------------------------------------------------
 	// Multiple Proxy Interface Test
@@ -303,15 +380,20 @@ int main(int,char**)
 				printf("%s\n", javaString.c_str());
 			}
 		}
+
+		AbortIfErrors("Failures with multiple interfaces");
+
 		for (int i = 0; i < 32; ++i) // Do a couple of loops to massage the GC
 		{
 			jni::LocalScope frame;
-			jni::Array<int> array(1024*1024);
+			jni::Array<jint> array(1024*1024);
 			System::Gc();
 		}
 
 		printf("%s", "end of multi interface test\n");
 	}
+
+	AbortIfErrors("Failures with multiple interfaces");
 
 	// -------------------------------------------------------------
 	// Proxy Object Test
@@ -331,6 +413,7 @@ int main(int,char**)
 		printf("toString: %s\n", runnable.ToString().c_str());
 	}
 
+	AbortIfErrors("Failures with Proxy Object Test");
 
 	// -------------------------------------------------------------
 	// Move semantics
@@ -347,7 +430,7 @@ int main(int,char**)
 			abort();
 		}
 
-		printf("Value of moved integer: %d\n", static_cast<jint>(integer_moved));
+		printf("Value of moved integer: %ld\n", static_cast<long>(integer_moved));
 
 		java::lang::Integer integer_assigned(4321);
 		integer_assigned = std::move(integer_moved);
@@ -358,11 +441,13 @@ int main(int,char**)
 			abort();
 		}
 
-		printf("Value of move-assigned integer: %d\n", static_cast<jint>(integer_assigned));
+		printf("Value of move-assigned integer: %ld\n", static_cast<long>(integer_assigned));
 
 		integer = integer_assigned;
-		printf("Value of copy-assigned integer: %d\n", static_cast<jint>(integer));
+		printf("Value of copy-assigned integer: %ld\n", static_cast<long>(integer));
 	}
+
+	AbortIfErrors("Failures with move semantics");
 
 	// -------------------------------------------------------------
 	// Move semantics for String class
@@ -394,6 +479,7 @@ int main(int,char**)
 
 		printf("Moved string via constructor: %s\n", str_ctor_moved.c_str());
 	}
+	AbortIfErrors("Failures with string class");
 
 	// -------------------------------------------------------------
 	// LocalScope
@@ -469,6 +555,8 @@ int main(int,char**)
 	}
 
 	printf("%s\n", "EOP");
+
+	AbortIfErrors("Uncaught failure");
 
 	// print resolution of clock()
 	jni::DetachCurrentThread();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "API.h"
-#include <pthread.h>
+#include <mutex>
 
 namespace jni
 {
@@ -27,7 +27,9 @@ protected:
 
 // Factory stuff
 protected:
-	static jobject NewInstance(void* nativePtr, const jobject* interfaces, size_t interfaces_len);
+	static jobject NewInstance(void* nativePtr, const jobject interfacce);
+	static jobject NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2);
+	static jobject NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len);
 	static void DisableInstance(jobject proxy);
 
 	static ProxyTracker proxyTracker;
@@ -54,14 +56,14 @@ private:
 	};
 
 	LinkedProxy* head;
-	pthread_mutex_t lock;
+	std::mutex lock;
 };
 
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 {	
 protected:
-	ProxyGenerator() : m_ProxyObject(NewInstance(this, (jobject[]){TX::__CLASS...}, sizeof...(TX)))	
+	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
 		proxyTracker.StartTracking(this);
 	}
@@ -75,6 +77,12 @@ protected:
 	virtual ::jobject __ProxyObject() const { return m_ProxyObject; }
 
 private:
+	inline jobject CreateInstance()
+	{
+		jobject interfaces[] = { TX::__CLASS... };
+		return NewInstance(this, interfaces, sizeof...(TX));
+	}
+
 	template<typename... Args> inline void DummyInvoke(Args&&...) {}
 	virtual bool __InvokeInternal(jclass clazz, jmethodID mid, jobjectArray args, jobject* result)
 	{

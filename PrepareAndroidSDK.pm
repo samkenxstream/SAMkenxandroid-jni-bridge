@@ -127,7 +127,7 @@ our $sourcePropVersions =
     "21.3.6528147" => "r21 (64-bit)",
     };
 
-our ($HOST_ENV, $TMP, $HOME, $WINZIP);
+our ($HOST_ENV, $TMP, $HOME, $WINZIP, $WINZIP_POWERSHELL);
 
 sub GetAndroidSDK
 {
@@ -152,6 +152,10 @@ sub GetAndroidSDK
         {
             $WINZIP = "External/7z/win32/7za.exe";
         }
+		else
+		{
+			$WINZIP_POWERSHELL = "powershell.exe";
+		}
     }
     elsif (lc $^O eq 'cygwin')
     {
@@ -414,6 +418,11 @@ sub DownloadAndUnpackArchive
     {
         system($WINZIP, "x", $temporary_download_path, "-o" . $temporary_unpack_path);
     }
+	elsif ($WINZIP_POWERSHELL)
+	{
+		print("Unzipping using powershell '${temporary_download_path}' -> '${temporary_unpack_path}'\n");
+		system($WINZIP_POWERSHELL, "-nologo", "-noprofile", "-command", "\"& { Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('${temporary_download_path}', '${temporary_unpack_path}'); }\"");
+	}
     else
     {
         if (lc $suffix eq '.zip')

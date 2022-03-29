@@ -80,7 +80,8 @@ my @classes = (
 	'::com::google::android::gms::common::GooglePlayServicesNotAvailableException',
 );
 
-sub BuildAndroid
+# Set ANDROID_SDK_ROOT
+sub Prepare
 {
 	my $class_names = join(' ', @classes);
 	my $threads = 8;
@@ -114,5 +115,211 @@ sub ZipIt
 	system("rm -r build/temp") && die("Unable to remove temp directory.");
 }
 
-BuildAndroid();
-#ZipIt();
+my $stringBuildJniBridgeAndZipIt = "Build JNIBridge and Zip It";
+my $stringBuildJniBridge = "Build JNIBridge";
+my $stringGenerateVSProjectFiles = "Generate Visual Studio project files";
+my $stringTestOnOSX = "Test JNIBridge";
+my $stringHelp = "Show command line arguments";
+my @abis = ("armeabi-v7a", "arm64-v8a", "x86", "x86_64");     
+
+sub ShowMenu
+{
+	print("(b) ${stringBuildJniBridgeAndZipIt}\n");
+	foreach my $abi ( @abis ) 
+	{
+		print("(b $abi) ${stringBuildJniBridge} $abi\n");
+	}
+
+	print("(p) ${stringGenerateVSProjectFiles}\n");
+	print("(t) ${stringTestOnOSX}\n");
+	print("(h) ${stringHelp}\n");
+	print("(q) Exit\n");
+	print("\n");
+}
+
+sub ShowCommandLineArgs
+{
+	print("build.pl jnibridge\n    ${stringBuildJniBridgeAndZipIt}\n\n");
+	foreach my $abi ( @abis ) 
+	{
+		print("build.pl jnibridge $abi\n    ${stringBuildJniBridge} $abi\n\n");
+	}
+
+	print("build.pl projectfiles\n    ${stringGenerateVSProjectFiles}\n\n");
+	print("build.pl test\n    ${stringTestOnOSX}\n\n");
+	print("build.pl help\n    ${stringHelp}\n\n");
+}
+
+sub GetBeeExecutable
+{
+    if (lc $^O eq 'darwin')
+    {
+        return "./bee";
+    }
+    elsif (lc $^O eq 'linux')
+    {
+        return "./bee";
+    }
+    elsif (lc $^O eq 'mswin32')
+    {
+        return "bee";
+    }
+    else
+    {
+        die "Coudln't get Bee executable for " . $^O;
+    }
+}
+
+my $Bee = GetBeeExecutable();
+my ($arg1, $arg2) = @ARGV;
+my $quitAfterCommand = 0;
+
+while (1)
+{
+	if (not defined $arg1)
+	{
+		ShowMenu();
+		my $pick = <STDIN>;
+		
+		if ($pick)
+		{
+			chomp($pick);
+		}
+		else
+		{
+			# null stdin probably means ctrl-c
+			print("Ctrl + C detected, quitting\n");
+			$pick = "q";
+		}
+		
+		if ($pick eq "b")
+		{
+			$arg1 = "jnibridge";
+		}
+
+		foreach my $abi ( @abis ) 
+		{
+			if ($pick eq "b $abi")
+			{
+				$arg1 = "jnibridge";
+				$arg2 = $abi;
+			}
+		}
+	
+
+		if ($pick eq "p")
+		{
+			$arg1 = "projectfiles";
+		}
+		if ($pick eq "t")
+		{
+			$arg1 = "test";
+		}
+		if ($pick eq "h")
+		{
+			$arg1 = "help";
+		}
+		if ($pick eq "q")
+		{
+			$arg1 = "quit";
+		}
+		
+		if (not defined $arg1)
+		{
+			$arg1 = "unknownshortcut";
+			$arg2 = "Unknown command '${pick}'";
+		}
+		
+		$quitAfterCommand = 0;
+	}
+	else
+	{
+		$quitAfterCommand = 1;
+	}
+
+
+	print("\nArguments:\n    ${arg1}");
+	if (defined $arg2)
+	{
+		print(" $arg2");
+	}
+	print("\n\n");
+	
+	if ($arg1 eq "jnibridge")
+	{
+		print("Building JNIBridge\n");
+		Prepare();
+		if (not defined $arg2)
+		{
+			system("${Bee} build:android:zip") && die("Couldn't build JNIBridge");
+		}
+		else
+		{
+			my $foundCorrectABI = 0;
+			foreach my $abi ( @abis ) 
+			{
+				if ($arg2 eq $abi)
+				{
+					$foundCorrectABI = 1;
+					system("${Bee} build:android:${arg2}") && die("Couldn't build JNIBridge ${arg2}");
+				}
+			}
+			
+			if (not $foundCorrectABI)
+			{
+				print("Unknown jnibridge ABI '${arg2}'");
+			}
+		}
+		
+	}
+	elsif ($arg1 eq "projectfiles")
+	{
+		print("Generating Visual Studio Projects JNIBridge\n");
+		Prepare();
+		system("${Bee} projectfiles") && die("Couldn't generate Visual Studio project files");
+	}
+	elsif ($arg1 eq "test")
+	{
+		print("Building and testing JNIBridge\n");
+		Prepare();
+		
+		if (lc $^O eq 'darwin')
+		{
+			system("${Bee} build:osx:test") && die("Couldn't build JNIBridge for testing");
+			system("./build/osx/JNIBridgeTests") && die("Test failed");
+		}
+		elsif (lc $^O eq 'mswin32')
+		{
+			system("${Bee} build:windows:test") && die("Couldn't build JNIBridge for testing");
+			system("build\\windows\\runtests.cmd") && die("Test failed");
+		}
+	}
+	elsif ($arg1 eq "help")
+	{
+		ShowCommandLineArgs();
+	}
+	elsif ($arg1 eq "quit")
+	{
+		exit();
+	}
+	elsif ($arg1 eq "unknownshortcut")
+	{
+		print($arg2);
+	}
+	else
+	{
+		die("Unknown command ${arg1}\n");
+	}
+	
+	
+	print("\n\nCommand finished.\n\n");
+	
+	if ($quitAfterCommand)
+	{
+		exit();
+	}
+	
+	$arg1 = undef();
+	$arg2 = undef();
+}
+

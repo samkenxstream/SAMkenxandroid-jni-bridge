@@ -9,6 +9,9 @@ using Bee.Toolchain.Android;
 using Bee.Toolchain.GNU;
 using Bee.Tools;
 using NiceIO;
+using Bee.ProjectGeneration.VisualStudio;
+using Bee.VisualStudioSolution;
+using System.Linq;
 
 /**
  * Required environment variables:
@@ -26,10 +29,21 @@ using NiceIO;
  *   - build:android:zip - builds all 4 android archs above and zips them (THIS IS THE MAIN ONE)
  *   - build:osx:x86_64
  *   - build:osx:test - builds the one above and the test program (run ./build/osx/test afterwards to run tests)
+ *   - build:windows:x86_64
+ *   - build:windows:test - builds the one above and the test program (run build\windows\runtests.cmd afterwards to run tests)
+ *   - projectfiles - generates IDE projects
  */
+
+
 class JniBridge
 {
     const string kAndroidApi = "android-31";
+
+    static class Platform
+    {
+        public const string OSX = "osx";
+        public const string Windows = "windows";
+    }
 
     static readonly string[] kAndroidApiClasses = new[]
     {
@@ -101,11 +115,15 @@ class JniBridge
         "::com::google::android::gms::common::GooglePlayServicesNotAvailableException",
     };
 
-    private static readonly string[] kMacOSClasses = new[]
+    private static readonly string[] kDesktopClasses = new[]
     {
         "::java::lang::System",
         "::java::lang::UnsupportedOperationException",
     };
+
+    private static NPath[] HeaderFiles => NPath.CurrentDirectory.Files("*.h");
+    private static NPath[] CppFiles => NPath.CurrentDirectory.Files("*.cpp");
+    private static NPath[] JavaFiles => NPath.CurrentDirectory.Combine("jnibridge/bitter/jnibridge").Files("*.java");
 
     static void Main()
     {
@@ -119,14 +137,17 @@ class JniBridge
         var jnibridgeJar = SetupJniBridgeJar(jdk);
         var generatedFilesAndroid = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetAndroidSourceGenerationParams(sdk));
         var generatedFilesMacOS = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetMacOSSourceGenerationParams(jdk));
+        var generatedFilesWindows = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetWindowsSourceGenerationParams(jdk));
 
         var androidZip = new ZipArchiveContents();
         var versionFile = VersionControl.SetupWriteRevisionInfoFile(new NPath("artifacts").Combine("build.txt"));
         var androidToolchains = GetAndroidToolchains();
+        var nativePrograms = new List<NativeProgram>();
         foreach (var toolchain in androidToolchains)
         {
             var androidConfig = new NativeProgramConfiguration(codegen, toolchain, false);
             var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain), androidZip);
+            nativePrograms.Add(np);
         }
         var headers = SetupJniBridgeHeaders(generatedFilesAndroid, "android");
         foreach (var header in headers)
@@ -136,14 +157,24 @@ class JniBridge
         androidZip.AddFileToArchive(jnibridgeJar);
         androidZip.AddFileToArchive(versionFile);
 
+
+        var codegenForTests = CodeGen.Debug;
         var osxToolchain = ToolChain.Store.Mac().Sdk_10_13().x64();
-        var osxConfig = new NativeProgramConfiguration(codegen, osxToolchain, false);
+        var osxConfig = new NativeProgramConfiguration(codegenForTests, osxToolchain, false);
         var osxStaticLib = SetupJniBridgeStaticLib(generatedFilesMacOS, osxConfig, GetMacOSStaticLibParams(osxToolchain, jdk));
-        SetupTestProgramOsx(osxToolchain, osxStaticLib, codegen, generatedFilesMacOS, jdk);
+        SetupTestProgramOsx(osxToolchain, osxStaticLib, codegenForTests, generatedFilesMacOS, jdk);
+
+        var windowsToolchain = ToolChain.Store.Windows().VS2019().Sdk_18362().x64();
+        var windowsConfig = new NativeProgramConfiguration(codegenForTests, windowsToolchain, false);
+        var windowsStaticLib = SetupJniBridgeStaticLib(generatedFilesWindows, windowsConfig, GetWindowsStaticLibParams(windowsToolchain, jdk));
+        var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk,
+            out var targetExecutable, out var arguments, out var workingDirectory);
 
         var androidZipPath = "build/builds.zip";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
+
+        SetupGeneratedProjects(nativePrograms, windowsTestProgram, generatedFilesWindows, targetExecutable, arguments, workingDirectory);
     }
 
     static Jdk SetupJava()
@@ -228,17 +259,28 @@ class JniBridge
         };
     }
 
-    static SourceGenerationParams GetMacOSSourceGenerationParams(Jdk jdk)
+    static SourceGenerationParams GetDesktopSourceGenerationParams(Jdk jdk, string platformName)
     {
         var rtJar = jdk.JavaHome.Combine("jre", "lib", "rt.jar");
 
         return new SourceGenerationParams()
         {
-            platformName = "osx",
+            platformName = platformName,
             inputJars = new [] {rtJar},
-            classes = kMacOSClasses,
+            classes = kDesktopClasses,
         };
     }
+
+    static SourceGenerationParams GetMacOSSourceGenerationParams(Jdk jdk)
+    {
+        return GetDesktopSourceGenerationParams(jdk, Platform.OSX);
+    }
+
+    static SourceGenerationParams GetWindowsSourceGenerationParams(Jdk jdk)
+    {
+        return GetDesktopSourceGenerationParams(jdk, Platform.Windows);
+    }
+
     static NPath SetupSourceGeneration(Jdk jdk, NPath apiGenerator, NPath jnibridgeJar, SourceGenerationParams genParams)
     {
         var destDir = new NPath("artifacts").Combine("generated", genParams.platformName);
@@ -318,12 +360,27 @@ class JniBridge
         return new StaticLibParams()
         {
             libName = "testlib",
-            platformName = "osx",
+            platformName = Platform.OSX,
             archName = toolchain.Architecture.Name,
             specialConfiguration = (np) =>
             {
                 np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
                 np.IncludeDirectories.Add(jdk.JavaHome.Combine("include", "darwin"));
+            },
+        };
+    }
+
+    static StaticLibParams GetWindowsStaticLibParams(ToolChain toolchain, Jdk jdk)
+    {
+        return new StaticLibParams()
+        {
+            libName = "testlib",
+            platformName = Platform.Windows,
+            archName = toolchain.Architecture.Name,
+            specialConfiguration = (np) =>
+            {
+                np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
+                np.IncludeDirectories.Add(jdk.JavaHome.Combine("include", "win32"));
             },
         };
     }
@@ -340,8 +397,7 @@ class JniBridge
 
         var np = new NativeProgram(libParams.libName);
         np.Sources.Add(generatedSources);
-        var jniBridgeSources = NPath.CurrentDirectory.Files("*.cpp");
-        np.Sources.Add(jniBridgeSources);
+        np.Sources.Add(CppFiles);
         np.IncludeDirectories.Add(generatedFilesDir);
         np.ExtraDependenciesForAllObjectFiles.Add(generatedFilesDir);
         if (libParams.specialConfiguration != null)
@@ -368,7 +424,7 @@ class JniBridge
         var includes = new NPath("build").Combine(platformName, "include");
 
         includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine("API.h"), generatedFilesDir.Combine("API.h")));
-        foreach (var file in NPath.CurrentDirectory.Files("*.h"))
+        foreach (var file in HeaderFiles)
             includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine(file.FileName), file));
 
         var incs = includeFiles.ToArray();
@@ -378,7 +434,7 @@ class JniBridge
 
     static void SetupTestProgramOsx(ToolChain toolchain, NativeProgram staticLib, CodeGen codegen, NPath generatedFilesDir, Jdk jdk)
     {
-        var np = new NativeProgram("test");
+        var np = new NativeProgram("JNIBridgeTests");
         np.Sources.Add(new NPath("test").Files("*.cpp"));
         np.IncludeDirectories.Add(generatedFilesDir);
         np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
@@ -388,10 +444,166 @@ class JniBridge
         np.Libraries.Add(new DynamicLibrary(javaLibDir.Combine("libjvm.dylib")));
         np.CompilerSettings().Add(c => c.WithCustomFlags(new [] {$"-Wl,-rpath,{javaLibDir}"}));
         
-        var destDir = new NPath("build").Combine("osx");
+        var destDir = new NPath("build").Combine(Platform.OSX);
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
         
-        Backend.Current.AddAliasDependency("build:osx:test", target.Paths);
+        Backend.Current.AddAliasDependency($"build:{Platform.OSX}:test", target.Paths);
+    }
+
+    static NativeProgram SetupTestProgramWindows(ToolChain toolchain, NativeProgram staticLib, CodeGen codegen, NPath generatedFilesDir, Jdk jdk, out NPath targetExecutable, out string arguments, out NPath workingDirectory)
+    {
+        var np = new NativeProgram("JNIBridgeTests");
+        np.Sources.Add(new NPath("test").Files("*.cpp"));
+        np.IncludeDirectories.Add(generatedFilesDir);
+        np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
+        np.IncludeDirectories.Add(jdk.JavaHome.Combine("include", "win32"));
+        np.Libraries.Add(staticLib);
+        var javaLibDir = jdk.JavaHome.Combine("lib");
+        np.Libraries.Add(new StaticLibrary(javaLibDir.Combine("jvm.lib")));
+
+        var destDir = new NPath("build").Combine(Platform.Windows);
+        var config = new NativeProgramConfiguration(codegen, toolchain, false);
+        var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
+
+        workingDirectory = jdk.JavaHome.Combine("jre/bin/server").MakeAbsolute();
+        targetExecutable = destDir.Combine(np.Name + ".exe").MakeAbsolute();
+        arguments = "build/jnibridge.jar".ToNPath().MakeAbsolute().InQuotes();
+        var script = destDir.Combine("runtests.cmd");
+        Backend.Current.AddWriteTextAction(script, $@"echo off
+echo Launching tests
+cd {workingDirectory.InQuotes()}
+{targetExecutable.InQuotes()} {arguments}
+echo Exited with code %ERRORLEVEL%
+exit %ERRORLEVEL%
+");
+
+        var targetPaths = new List<NPath>(target.Paths);
+        targetPaths.Add(script);
+        Backend.Current.AddAliasDependency($"build:{Platform.Windows}:test", targetPaths.ToArray());
+
+        return np;
+    }
+
+    static string GetABI(Architecture architecture)
+    {
+        if (architecture == Architecture.Armv7)
+            return "armeabi-v7a";
+        if (architecture == Architecture.Arm64)
+            return "arm64-v8a";
+        if (architecture == Architecture.x86)
+            return "x86";
+        if (architecture == Architecture.x64)
+            return "x86_64";
+        throw new NotImplementedException(architecture.ToString());
+    }
+
+    static void SetupGeneratedProjects(IReadOnlyList<NativeProgram> programs, NativeProgram testingProgram, NPath generatedFilesDirectory,
+        NPath executableForTests, string arguments, NPath workingDirectory)
+    {
+        // Not entirely sure, but I think there's should have been only NativeProgram with different architectures.
+        // Yet we have 4
+        // For now pick the first one, since it will be enough for editing purposes
+
+        var nativeProgram = programs[0];
+        var ndkToolchain = (AndroidNdkToolchain)nativeProgram.SetupConfigurations.FirstOrDefault().ToolChain;
+        var ndkIncludePath = ndkToolchain.Sdk.Path.ResolveWithFileSystem().Combine("sysroot/usr/include");
+        
+        var jniBridgeNP = new NativeProgram("JNIBridge");
+        nativeProgram.Sources.CopyTo(jniBridgeNP.Sources);
+        nativeProgram.IncludeDirectories.CopyTo(jniBridgeNP.IncludeDirectories);
+        nativeProgram.Defines.CopyTo(jniBridgeNP.Defines);
+
+        jniBridgeNP.IncludeDirectories.Add(ndkIncludePath);
+
+        var configs = new List<NativeProgramConfiguration>();
+        foreach (var p in programs)
+        {
+            configs.AddRange(p.SetupConfigurations.ToArray());
+        }
+
+        jniBridgeNP.ValidConfigurations = configs;
+        jniBridgeNP.OutputName.Set(string.Empty);
+
+        var setAndroidSDKRoot = $"set ANDROID_SDK_ROOT={SetupAndroidSdk()}";
+        jniBridgeNP.CommandToBuild.Set(c =>
+        {
+            var architecture = ((AndroidNdkToolchain)c.ToolChain).Architecture;
+            return $@"{setAndroidSDKRoot}
+bee build:android:{GetABI(architecture)}";
+        });
+
+        var jniBridgeSln = new VisualStudioSolution();
+        foreach (var config in configs)
+        {
+            var architecture = ((AndroidNdkToolchain)config.ToolChain).Architecture;
+
+            jniBridgeSln.Configurations.Add(new SolutionConfiguration(GetABI(architecture), (configurations, file) =>
+            {
+                var firstOrDefault = configurations.FirstOrDefault(c => c == config);
+                return new Tuple<IProjectConfiguration, bool>(
+                    firstOrDefault ?? configurations.First(),
+                    true);
+            }));
+        }
+        var extraFiles = new List<NPath>();
+        extraFiles.AddRange(HeaderFiles);
+        extraFiles.AddRange(CppFiles);
+        extraFiles.AddRange(JavaFiles);
+
+        var builder = new VisualStudioNativeProjectFileBuilder(jniBridgeNP, extraFiles);
+        builder = jniBridgeNP.ValidConfigurations.Aggregate(
+            builder,
+            (current, c) => current.AddProjectConfiguration(c)
+            );
+
+        
+        jniBridgeSln.Projects.Add(builder.DeployTo("JNIBridge.vcxproj"));
+
+        testingProgram.CommandToBuild.Set(c =>
+        {
+            return @$"{setAndroidSDKRoot}
+bee build:windows:test";
+        });
+
+        var extraFilesForTests = new List<NPath>();
+        extraFilesForTests.AddRange(HeaderFiles);
+        extraFilesForTests.AddRange(CppFiles);
+        extraFilesForTests.AddRange(JavaFiles);
+        // Includes generated files for Windows, we don't want those in JNIBridge project since it builds for Android
+        if (generatedFilesDirectory.DirectoryExists())
+            extraFilesForTests.AddRange(generatedFilesDirectory.Files(true));       
+
+        builder = new VisualStudioNativeProjectFileBuilder(testingProgram, extraFilesForTests);
+        builder = testingProgram.SetupConfigurations.Aggregate(
+            builder,
+            (current, c) => current.AddProjectConfiguration(c)
+            );
+
+        var jniBridgeTestsSln = new VisualStudioSolution();
+        var vsProject = builder.DeployTo("JNIBridgeTests.vcxproj");
+        jniBridgeTestsSln.Projects.Add(vsProject);
+
+        var vsProjectUsersSettings = (vsProject.Path + ".user").ToNPath();
+        GenerateVSUserSettings(vsProjectUsersSettings, executableForTests, arguments, workingDirectory);
+        Backend.Current.AddAliasDependency("projectfiles", jniBridgeSln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", jniBridgeTestsSln.Setup());
+        Backend.Current.AddAliasDependency("projectfiles", vsProjectUsersSettings);
+        Backend.Current.AddAliasDependency("projectfiles", generatedFilesDirectory);
+    }
+
+    static void GenerateVSUserSettings(NPath path, NPath executablePath, string arguments, NPath workingDirectory)
+    {
+        Backend.Current.AddWriteTextAction(path,
+$@"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""Current"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+  <PropertyGroup Condition=""'$(Configuration)|$(Platform)'=='debug_Win64_VS2019_nonlump|x64'"">
+    <LocalDebuggerCommand>{executablePath.MakeAbsolute()}</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>{workingDirectory}</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>{arguments}</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+</Project>
+");
     }
 }

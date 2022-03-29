@@ -1,1 +1,5 @@
 build
+artifacts
+*.gen.sln
+*.vcxproj*
+*.vs

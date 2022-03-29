@@ -9,7 +9,17 @@ ProxyTracker ProxyObject::proxyTracker;
 JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke(JNIEnv* env, jobject thiz, jlong ptr, jclass clazz, jobject method, jobjectArray args)
 {
 	jmethodID methodID = env->FromReflectedMethod(method);
-	ProxyInvoker* proxy = (ProxyInvoker*)ptr;
+	// Previous code looked like this
+	//    ProxyInvoker* proxy = (ProxyInvoker*)ptr;
+	// When running tests on Windows proxy->Invoke would call into ProxyObject::Equals
+	// I am not sure why, but my guess - it's because of multiple inheritance with virtual functions.
+	// Since the only class which implements __Invoke is ProxyObject, I think it's pretty safe
+	// to cast to ProxyObject instead of ProxyInvoker
+	// Note: there's also this warning on Windows
+	//     Proxy.h(104): warning C4250: 'jni::ProxyGenerator<jni::GlobalRefAllocator,java::lang::Runnable>': inherits 'jni::ProxyObject::jni::ProxyObject::__Invoke' via dominance
+	// but even after fixing it, the call ProxyInvoker::__Invoke would still be incorrect, so I think the warning is inrelated, though again it points to virtual inheritance madness
+
+	ProxyObject* proxy = (ProxyObject*)ptr;
 	return proxy->__Invoke(clazz, methodID, args);
 }
 
@@ -89,7 +99,7 @@ bool ProxyObject::__TryInvoke(jclass clazz, jmethodID methodID, jobjectArray arg
 	return false;
 }
 
-jobject ProxyObject::NewInstance(void* nativePtr, const jobject* interfaces, size_t interfaces_len)
+jobject ProxyObject::NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len)
 {
 	Array<jobject> interfaceArray(java::lang::Class::__CLASS, interfaces_len, interfaces);
 
@@ -105,29 +115,22 @@ void ProxyObject::DisableInstance(jobject proxy)
 
 ProxyTracker::ProxyTracker()
 {
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&lock, &attr);
-	pthread_mutexattr_destroy(&attr);
 	head = NULL;
 }
 
 ProxyTracker::~ProxyTracker()
 {
-	pthread_mutex_destroy(&lock);
 }
 
 void ProxyTracker::StartTracking(ProxyObject* obj)
 {
-	pthread_mutex_lock(&lock);
+	std::lock_guard<std::mutex> guard(lock);
 	head = new LinkedProxy(obj, head);
-	pthread_mutex_unlock(&lock);
 }
 
 void ProxyTracker::StopTracking(ProxyObject* obj)
 {
-	pthread_mutex_lock(&lock);
+	std::lock_guard<std::mutex> guard(lock);
 	LinkedProxy* current = head;
 	LinkedProxy* previous = NULL;
 	while (current != NULL && current->obj != obj)
@@ -144,12 +147,11 @@ void ProxyTracker::StopTracking(ProxyObject* obj)
 			previous->next = current->next;
 		delete current;
 	}
-	pthread_mutex_unlock(&lock);
 }
 
 void ProxyTracker::DeleteAllProxies()
 {
-	pthread_mutex_lock(&lock);
+	std::lock_guard<std::mutex> guard(lock);
 	LinkedProxy* current = head;
 	head = NULL; // Destructor will call StopTracking, this will prevent it from looping through the whole list
 	while (current != NULL)
@@ -159,7 +161,6 @@ void ProxyTracker::DeleteAllProxies()
 		delete previous->obj;
 		delete previous;
 	}
-	pthread_mutex_unlock(&lock);
 }
 
 }
