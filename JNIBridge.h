@@ -34,7 +34,7 @@ extern jobject kNull;
 // --------------------------------------------------------------------------------------
 void        Initialize(JavaVM& vm, const CallbackOverrides& overrides);
 void        Initialize(JavaVM& vm);
-void		Shutdown();
+void        Shutdown();
 
 Errno       CheckError();
 Errno       PeekError();

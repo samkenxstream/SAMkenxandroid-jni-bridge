@@ -43,7 +43,7 @@ namespace jni
 	};
 #endif
 
-static JavaVM*				g_JavaVM;
+static JavaVM*              g_JavaVM;
 static CallbackOverrides*	g_Overrides;
 
 jobject kNull(0);
