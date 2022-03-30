@@ -107,16 +107,27 @@ static void ClearErrors()
 // --------------------------------------------------------------------------------------
 // Initialization and error functions (public)
 // --------------------------------------------------------------------------------------
-void Initialize(JavaVM& vm, CallbackOverrides* overrides )
+void Initialize(JavaVM& vm, const CallbackOverrides& overrides)
+{
+	Initialize(vm);
+	g_Overrides = (CallbackOverrides*)malloc(sizeof(CallbackOverrides));
+	memcpy(g_Overrides, &overrides, sizeof(CallbackOverrides));
+}
+
+void Initialize(JavaVM& vm)
 {
 	g_JavaVM = &vm;
-	g_Overrides = overrides;
+	g_Overrides = NULL;
 }
 
 void Shutdown()
 {
 	g_JavaVM = NULL;
-	g_Overrides = NULL;
+	if (g_Overrides != NULL)
+	{
+		free(g_Overrides);
+		g_Overrides = NULL;
+	}
 }
 
 Errno PeekError()

@@ -32,7 +32,8 @@ extern jobject kNull;
 // --------------------------------------------------------------------------------------
 // Initialization and error functions
 // --------------------------------------------------------------------------------------
-void        Initialize(JavaVM& vm, CallbackOverrides* overrides = NULL);
+void        Initialize(JavaVM& vm, const CallbackOverrides& overrides);
+void        Initialize(JavaVM& vm);
 void		Shutdown();
 
 Errno       CheckError();

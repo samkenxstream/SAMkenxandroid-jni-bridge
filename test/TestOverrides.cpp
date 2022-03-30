@@ -37,8 +37,14 @@ void AllocateClassLoader(JNIEnv* env)
     // This piece of code taken from Unity (EntryPoint.cpp void InitJni(JavaVM* jvm, jobject obj, jobject context))
     jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
     jmethodID getClassLoaderMethod = env->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
-    s_CustomClassLoader = env->NewGlobalRef(env->CallObjectMethod(jniBridgeClass, getClassLoaderMethod));
+    jobject temp = env->CallObjectMethod(jniBridgeClass, getClassLoaderMethod);
+    // Important, need to do ExceptionCheck before NewGlobalRef, otherwise JNI throws warning
+    if (env->ExceptionCheck())
+        return;
+
+    s_CustomClassLoader = env->NewGlobalRef(temp);
     s_ClassForNameMethod = env->GetStaticMethodID(classClass, "forName", "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;");
+
 
     AbortIfErrors("Couldn't allocate class loader");
 }
@@ -56,7 +62,7 @@ void TestOverrides(JavaVM* vm, JNIEnv* env)
 
     jni::CallbackOverrides overrides;
     overrides.findClass = FindClass;
-    jni::Initialize(*vm, &overrides);
+    jni::Initialize(*vm, overrides);
     
     int oldCallCount;
     jclass klass;
