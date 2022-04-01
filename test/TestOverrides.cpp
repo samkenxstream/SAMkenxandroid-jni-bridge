@@ -3,17 +3,12 @@
 #include "Test.h"
 #include <string.h>
 #include <assert.h>
+#include <string>
+#include <algorithm>
 
 static jobject s_CustomClassLoader = 0;
 static jmethodID s_ClassForNameMethod = 0;
 static int s_ClassLoaderCallCount = 0;
-
-struct JNIOverrides
-{
-    typedef jclass(*FindClass)(JNIEnv*, const char*);
-
-    FindClass findClass;
-};
 
 jclass FindClass(JNIEnv* env, const char* name)
 {
@@ -21,7 +16,10 @@ jclass FindClass(JNIEnv* env, const char* name)
     env->ExceptionClear();
     jclass clazz = env->FindClass("java/lang/Class");
     jboolean initialize = JNI_TRUE;
-    jstring java_name = env->NewStringUTF(name);
+
+    std::string qualifiedName = name;
+    std::replace(qualifiedName.begin(), qualifiedName.end(), '/', '.');
+    jstring java_name = env->NewStringUTF(qualifiedName.c_str());
     jclass klass = (jclass)env->CallStaticObjectMethod(clazz, s_ClassForNameMethod, java_name, initialize, s_CustomClassLoader);
     env->DeleteLocalRef(java_name);
     env->DeleteLocalRef(clazz);
@@ -38,9 +36,9 @@ void AllocateClassLoader(JNIEnv* env)
     jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
     jmethodID getClassLoaderMethod = env->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
     jobject temp = env->CallObjectMethod(jniBridgeClass, getClassLoaderMethod);
-    // Important, need to do ExceptionCheck before NewGlobalRef, otherwise JNI throws warning
+
     if (env->ExceptionCheck())
-        return;
+        AbortIfErrors("Failed to acquire class loader");
 
     s_CustomClassLoader = env->NewGlobalRef(temp);
     s_ClassForNameMethod = env->GetStaticMethodID(classClass, "forName", "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;");
@@ -61,14 +59,14 @@ void TestOverrides(JavaVM* vm, JNIEnv* env)
     AllocateClassLoader(env);
 
     jni::CallbackOverrides overrides;
-    overrides.findClass = FindClass;
-    jni::Initialize(*vm, overrides);
+    overrides.FindClass = FindClass;
+    jni::Initialize(*vm, &overrides);
     
     int oldCallCount;
     jclass klass;
-    // Note: need to use . instead of / 
+
     oldCallCount = s_ClassLoaderCallCount;
-    klass = jni::FindClass("bitter.jnibridge.JNIBridge");
+    klass = jni::FindClass("bitter/jnibridge/JNIBridge");
     assert(s_ClassLoaderCallCount == 1 + oldCallCount && klass && "Failed to get bitter.jnibridge.JNIBridge class via class loader");
 
     oldCallCount = s_ClassLoaderCallCount;

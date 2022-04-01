@@ -44,7 +44,7 @@ namespace jni
 #endif
 
 static JavaVM*              g_JavaVM;
-static CallbackOverrides*   g_Overrides;
+static CallbackOverrides    g_Overrides;
 
 jobject kNull(0);
 
@@ -104,30 +104,34 @@ static void ClearErrors()
 	}
 }
 
+jclass DefaultFindClass(JNIEnv* env, const char* name);
+
+void ResetOverrides()
+{
+	g_Overrides.FindClass = DefaultFindClass;
+}
+
 // --------------------------------------------------------------------------------------
 // Initialization and error functions (public)
 // --------------------------------------------------------------------------------------
-void Initialize(JavaVM& vm, const CallbackOverrides& overrides)
-{
-	Initialize(vm);
-	g_Overrides = (CallbackOverrides*)malloc(sizeof(CallbackOverrides));
-	memcpy(g_Overrides, &overrides, sizeof(CallbackOverrides));
-}
-
-void Initialize(JavaVM& vm)
+void Initialize(JavaVM& vm, CallbackOverrides* overrides)
 {
 	g_JavaVM = &vm;
-	g_Overrides = NULL;
+
+	if (overrides != NULL)
+	{
+		g_Overrides = *overrides;
+	}
+	else
+	{
+		ResetOverrides();
+	}
 }
 
 void Shutdown()
 {
 	g_JavaVM = NULL;
-	if (g_Overrides != NULL)
-	{
-		free(g_Overrides);
-		g_Overrides = NULL;
-	}
+	ResetOverrides();
 }
 
 Errno PeekError()
@@ -268,16 +272,14 @@ void DetachCurrentThread()
 	vm->DetachCurrentThread();
 }
 
+jclass DefaultFindClass(JNIEnv* env, const char* name)
+{
+	return env->FindClass(name);
+}
+
 jclass FindClass(const char* name)
 {
-	if (g_Overrides != NULL && g_Overrides->findClass != NULL)
-	{
-		JNI_CALL_RETURN(jclass, name, true, g_Overrides->findClass(env, name));
-	}
-	else
-	{
-		JNI_CALL_RETURN(jclass, name, true, env->FindClass(name));
-	}
+	JNI_CALL_RETURN(jclass, name, true, g_Overrides.FindClass(env, name));
 }
 
 jint Throw(jthrowable object)

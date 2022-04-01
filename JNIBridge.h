@@ -14,9 +14,9 @@ namespace jni
 {
 	struct CallbackOverrides
 	{
-		typedef jclass(*FindClass)(JNIEnv*, const char*);
+		typedef jclass(*FindClassFunc)(JNIEnv*, const char*);
 
-		FindClass findClass;
+		FindClassFunc FindClass;
 	};
 
 enum Errno
@@ -32,8 +32,7 @@ extern jobject kNull;
 // --------------------------------------------------------------------------------------
 // Initialization and error functions
 // --------------------------------------------------------------------------------------
-void        Initialize(JavaVM& vm, const CallbackOverrides& overrides);
-void        Initialize(JavaVM& vm);
+void        Initialize(JavaVM& vm, CallbackOverrides* overrides = NULL);
 void        Shutdown();
 
 Errno       CheckError();
