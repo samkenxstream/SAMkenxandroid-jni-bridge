@@ -118,14 +118,10 @@ void Initialize(JavaVM& vm, CallbackOverrides* overrides)
 {
 	g_JavaVM = &vm;
 
-	if (overrides != NULL)
-	{
-		g_Overrides = *overrides;
-	}
-	else
-	{
-		ResetOverrides();
-	}
+	ResetOverrides();
+
+	if (overrides != NULL && overrides->FindClass != NULL)
+		g_Overrides.FindClass = overrides->FindClass;
 }
 
 void Shutdown()
