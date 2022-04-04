@@ -62,6 +62,7 @@ class JniBridge
         "::android::hardware::input::InputManager",
         "::android::hardware::GeomagneticField",
         "::android::location::LocationManager",
+        "::android::hardware::SensorManager",
         "::android::media::AudioAttributes_Builder",
         "::android::media::AudioFocusRequest_Builder",
         "::android::media::AudioManager",
