@@ -206,7 +206,7 @@ class JniBridge
 
     static AndroidNdkToolchain[] GetAndroidToolchains()
     {
-        var ndk = ToolChain.Store.Android().r21d();
+        var ndk = ToolChain.Store.Android().r23b();
         return new[]
         {
             ndk.Armv7(),
