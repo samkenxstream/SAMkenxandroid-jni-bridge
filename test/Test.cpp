@@ -304,13 +304,13 @@ int main(int argc, char** argv)
 	// -------------------------------------------------------------
 	struct KillMePleazeRunnable : jni::WeakProxy<Runnable>
 	{
-		virtual ~KillMePleazeRunnable() { printf("%s\n", "KillMePleazeRunnable");}
+		virtual ~KillMePleazeRunnable() { printf("%s\n", "KillMePleazeRunnable destroyed");}
 		virtual void Run() { }
 	};
 
 	{
 		jni::LocalScope frame;
-		new KillMePleazeRunnable;
+		KillMePleazeRunnable destructorShoudDisableCallIntoNative;
 	}
 	AbortIfErrors("Failures with Weak Proxy");
 

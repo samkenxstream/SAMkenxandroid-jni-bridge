@@ -23,11 +23,6 @@ JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_in
 	return proxy->__Invoke(clazz, methodID, args);
 }
 
-JNIEXPORT void JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_delete(JNIEnv* env, jobject thiz, jlong ptr)
-{
-	delete (ProxyInvoker*)ptr;
-}
-
 bool ProxyInvoker::__Register()
 {
 	jni::LocalScope frame;
@@ -39,10 +34,9 @@ bool ProxyInvoker::__Register()
 
 	JNINativeMethod nativeProxyFunction[] = {
 		{invokeMethodName, invokeMethodSignature, (void*) Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke},
-		{deleteMethodName, deleteMethodSignature, (void*) Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_delete}
 	};
 
-	if (nativeProxyClass) jni::GetEnv()->RegisterNatives(nativeProxyClass, nativeProxyFunction, 2); // <-- fix this
+	if (nativeProxyClass) jni::GetEnv()->RegisterNatives(nativeProxyClass, nativeProxyFunction, 1);
 	return !jni::CheckError();
 }
 
