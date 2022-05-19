@@ -80,7 +80,7 @@ protected:
 		DisableInstance(__ProxyObject());
 	}
 
-	virtual ::jobject __ProxyObject() const { return m_ProxyObject; }
+	::jobject __ProxyObject() const override { return m_ProxyObject; }
 
 private:
 	inline jobject CreateInstance()
@@ -90,7 +90,7 @@ private:
 	}
 
 	template<typename... Args> inline void DummyInvoke(Args&&...) {}
-	virtual bool __InvokeInternal(jclass clazz, jmethodID mid, jobjectArray args, jobject* result)
+	bool __InvokeInternal(jclass clazz, jmethodID mid, jobjectArray args, jobject* result) override
 	{
 		bool success = false;
 		DummyInvoke(ProxyObject::__TryInvoke(clazz, mid, args, &success, result), TX::__Proxy::__TryInvoke(clazz, mid, args, &success, result)...);
