@@ -424,6 +424,31 @@ int main(int argc, char** argv)
 	AbortIfErrors("Failures with Proxy Object Test");
 
 	// -------------------------------------------------------------
+	// Proxy tracking
+	// -------------------------------------------------------------
+	{
+		struct RunnableImpl : jni::Proxy<Runnable>
+		{
+			virtual ~RunnableImpl() {printf("%s\n", "RunnableImpl destroyed");}
+			virtual void Run() {printf("%s\n", "hello world!!!!"); }
+		};
+		RunnableImpl* runnable;
+		RunnableImpl onStackRunnable;
+		{
+			jni::LocalScope frame;
+			runnable = new RunnableImpl;
+		}
+
+		// deleting proxies
+		printf("%s\n", "Deleting all proxies");
+		jni::ProxyObject::DeleteAllProxies();
+		printf("%s\n", "All proxies are deleted");
+		delete runnable;
+	}
+
+	AbortIfErrors("Failures with Proxy tracking Test");
+
+	// -------------------------------------------------------------
 	// Move semantics
 	// -------------------------------------------------------------
 	{
