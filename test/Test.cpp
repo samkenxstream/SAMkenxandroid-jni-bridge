@@ -258,21 +258,23 @@ int main(int argc, char** argv)
 		virtual void Run() {printf("%s\n", "hello world!!!!"); }
 	};
 
-	PretendRunnable pretendRunnable;
-	Runnable runnable = pretendRunnable;
+	{
+		PretendRunnable pretendRunnable;
+		Runnable runnable = pretendRunnable;
 
-	Thread     thread(pretendRunnable);
-	thread.Start();
-	thread.Join();
+		Thread     thread(pretendRunnable);
+		thread.Start();
+		thread.Join();
 
-	runnable.Run();
+		runnable.Run();
 
-	// Make sure we don't get crashes from deleting the native object.
-	PretendRunnable* pretendRunnable2 = new PretendRunnable;
-	Runnable runnable2 = *pretendRunnable2;
-	runnable2.Run();
-	delete pretendRunnable2;
-	runnable2.Run(); // <-- should not log anything
+		// Make sure we don't get crashes from deleting the native object.
+		PretendRunnable* pretendRunnable2 = new PretendRunnable;
+		Runnable runnable2 = *pretendRunnable2;
+		runnable2.Run();
+		delete pretendRunnable2;
+		runnable2.Run(); // <-- should not log anything
+	}
 
 	// -------------------------------------------------------------
 	// Performance Proxy Test
