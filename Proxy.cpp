@@ -155,7 +155,7 @@ void ProxyTracker::DeleteAllProxies()
 	{
 		LinkedProxy* previous = current;
 		current = current->next;
-		delete previous->obj;
+		previous->obj->Disable();
 		delete previous;
 	}
 }

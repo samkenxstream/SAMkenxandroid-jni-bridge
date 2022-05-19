@@ -13,6 +13,7 @@ class ProxyObject : public virtual ProxyInvoker
 // Dispatch invoke calls
 public:
 	virtual jobject __Invoke(jclass clazz, jmethodID mid, jobjectArray args);
+	virtual void Disable() = 0;
 // Cleanup all proxy objects
 	static void DeleteAllProxies();
 
@@ -71,6 +72,11 @@ protected:
 	virtual ~ProxyGenerator()
 	{
 		proxyTracker.StopTracking(this);
+		DisableInstance(__ProxyObject());
+	}
+
+	virtual void Disable()
+	{
 		DisableInstance(__ProxyObject());
 	}
 
