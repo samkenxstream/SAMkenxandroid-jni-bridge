@@ -75,7 +75,7 @@ protected:
 		DisableInstance(__ProxyObject());
 	}
 
-	virtual void Disable()
+	void Disable() override
 	{
 		DisableInstance(__ProxyObject());
 	}
