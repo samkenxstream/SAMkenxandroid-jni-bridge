@@ -80,7 +80,7 @@ int main(int argc, char** argv)
 
 	JavaVMOption options[2];
 	options[0].optionString = classPath;
-	options[1].optionString = "-Xcheck:jni";
+	options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
 	vm_args.options = options;
 	vm_args.nOptions = 2;
@@ -231,7 +231,7 @@ int main(int argc, char** argv)
 		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
 		jni::Array<jint> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
-			printf("ArrayTest05[%ld],", (jint)test05[i]);
+			printf("ArrayTest05[%d],", (int)test05[i]);
 		printf("\n");
 
 		jni::Array<java::lang::Integer> test10(4, 4733);
