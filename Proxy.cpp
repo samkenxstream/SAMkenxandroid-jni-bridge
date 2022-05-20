@@ -109,7 +109,6 @@ void ProxyObject::DisableInstance(jobject proxy)
 
 ProxyTracker::ProxyTracker()
 {
-	head = NULL;
 }
 
 ProxyTracker::~ProxyTracker()
@@ -119,45 +118,26 @@ ProxyTracker::~ProxyTracker()
 void ProxyTracker::StartTracking(ProxyObject* obj)
 {
 	std::lock_guard<std::mutex> guard(lock);
-	head = new LinkedProxy(obj, head);
+	proxies.push_back(obj);
 }
 
 void ProxyTracker::StopTracking(ProxyObject* obj)
 {
 	std::lock_guard<std::mutex> guard(lock);
-	LinkedProxy* current = head;
-	LinkedProxy* previous = NULL;
-	while (current != NULL && current->obj != obj)
-	{
-		previous = current;
-		current = current->next;
-	}
-
-	if (current != NULL)
-	{
-		if (previous == NULL)
-			head = current->next;
-		else
-			previous->next = current->next;
-		delete current;
-	}
+	auto iter = std::find(proxies.begin(), proxies.end(), obj);
+	if (iter != proxies.end())
+		proxies.erase(iter);
 }
 
 void ProxyTracker::DeleteAllProxies()
 {
-	LinkedProxy* current;
+	std::vector<ProxyObject*> prox;
 	{
 		std::lock_guard<std::mutex> guard(lock);
-		current = head;
-		head = NULL; // Destructor will call StopTracking, this will prevent it from looping through the whole list
+		std::swap(proxies, prox);
 	}
-	while (current != NULL)
-	{
-		LinkedProxy* previous = current;
-		current = current->next;
-		previous->obj->Disable();
-		delete previous;
-	}
+	for (auto proxy : prox)
+		proxy->Disable();
 }
 
 }

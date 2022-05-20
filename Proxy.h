@@ -2,6 +2,7 @@
 
 #include "API.h"
 #include <mutex>
+#include <vector>
 
 namespace jni
 {
@@ -47,16 +48,7 @@ public:
 	void DeleteAllProxies();
 
 private:
-	class LinkedProxy
-	{
-	public:
-		LinkedProxy(ProxyObject* target, LinkedProxy* link) : obj(target), next(link) {}
-
-		ProxyObject* obj;
-		LinkedProxy* next;
-	};
-
-	LinkedProxy* head;
+	std::vector<ProxyObject*> proxies;
 	std::mutex lock;
 };
 
