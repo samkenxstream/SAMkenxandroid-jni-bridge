@@ -82,6 +82,15 @@ public:
 		return *this;
 	}
 
+	void Release()
+	{
+		if (m_Ref && !m_Ref->Release())
+		{
+			delete m_Ref;
+			m_Ref = NULL;
+		}
+	}
+
 private:
 	class RefCounter
 	{
@@ -111,15 +120,6 @@ private:
 	{
 		m_Ref = ref;
 		m_Ref->Aquire();
-	}
-
-	void Release()
-	{
-		if (m_Ref && !m_Ref->Release())
-		{
-			delete m_Ref;
-			m_Ref = NULL;
-		}
 	}
 
 private:
