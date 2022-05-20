@@ -70,6 +70,7 @@ protected:
 	void DisableProxy() override
 	{
 		DisableInstance(__ProxyObject());
+		m_ProxyObject.Release();
 	}
 
 	::jobject __ProxyObject() const override { return m_ProxyObject; }
