@@ -14,7 +14,7 @@ class ProxyObject : public virtual ProxyInvoker
 // Dispatch invoke calls
 public:
 	virtual jobject __Invoke(jclass clazz, jmethodID mid, jobjectArray args);
-	virtual void Disable() = 0;
+	virtual void DisableProxy() = 0;
 // Cleanup all proxy objects
 	static void DeleteAllProxies();
 
@@ -67,7 +67,7 @@ protected:
 		DisableInstance(__ProxyObject());
 	}
 
-	void Disable() override
+	void DisableProxy() override
 	{
 		DisableInstance(__ProxyObject());
 	}

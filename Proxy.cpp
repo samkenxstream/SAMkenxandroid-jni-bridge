@@ -137,7 +137,7 @@ void ProxyTracker::DeleteAllProxies()
 		std::swap(proxies, prox);
 	}
 	for (auto proxy : prox)
-		proxy->Disable();
+		proxy->DisableProxy();
 }
 
 }
