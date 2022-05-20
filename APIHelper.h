@@ -85,10 +85,8 @@ public:
 	void Release()
 	{
 		if (m_Ref && !m_Ref->Release())
-		{
 			delete m_Ref;
-			m_Ref = NULL;
-		}
+		m_Ref = NULL;
 	}
 
 private:
