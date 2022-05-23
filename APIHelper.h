@@ -77,6 +77,7 @@ public:
 		if (m_Ref == o.m_Ref)
 			return *this;
 
+		Release();
 		m_Ref = o.m_Ref;
 		o.m_Ref = nullptr;
 		return *this;
