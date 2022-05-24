@@ -424,6 +424,51 @@ int main(int argc, char** argv)
 	AbortIfErrors("Failures with Proxy Object Test");
 
 	// -------------------------------------------------------------
+	// Proxy Object Disable Test
+	// -------------------------------------------------------------
+	{
+		class DisableRunnable : public jni::Proxy<Runnable>
+		{
+		public:
+			DisableRunnable() : runCount(0) {}
+
+			virtual void Run()
+			{
+				++runCount;
+			}
+
+			jobject GetJavaObject() const
+			{
+				return __ProxyObject();
+			}
+
+			int runCount;
+		};
+
+		jni::LocalScope frame;
+		DisableRunnable runnableProxy;
+		Runnable runnableObject(runnableProxy.GetJavaObject());
+		runnableObject.Run();
+
+		if (runnableProxy.runCount == 0)
+		{
+			puts("Expected DisableRunnable to be called, but it wasn't called!");
+			abort();
+		}
+
+		runnableProxy.DisableProxy();
+		runnableObject.Run();  // this one should not invoke proxy
+		if (runnableProxy.runCount > 1)
+		{
+			printf("Expected DisableRunnable no longer be called, but it was called: %d!\n", runnableProxy.runCount);
+			abort();
+		}
+
+		// double disable, should not crash
+		runnableProxy.DisableProxy();
+	}
+
+	// -------------------------------------------------------------
 	// Move semantics
 	// -------------------------------------------------------------
 	{
