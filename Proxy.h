@@ -1,13 +1,8 @@
 #pragma once
 
 #include "API.h"
-#include <mutex>
-#include <vector>
-
 namespace jni
 {
-
-class ProxyTracker;
 
 class ProxyObject : public virtual ProxyInvoker
 {
@@ -15,8 +10,6 @@ class ProxyObject : public virtual ProxyInvoker
 public:
 	virtual jobject __Invoke(jclass clazz, jmethodID mid, jobjectArray args);
 	virtual void DisableProxy() = 0;
-// Cleanup all proxy objects
-	static void DeleteAllProxies();
 
 // These functions are special and always forwarded
 protected:
@@ -33,24 +26,8 @@ protected:
 	static jobject NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2);
 	static jobject NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len);
 	static void DisableInstance(jobject proxy);
-
-	static ProxyTracker proxyTracker;
 };
 
-
-class ProxyTracker 
-{
-public:
-	ProxyTracker();
-	~ProxyTracker();
-	void StartTracking(ProxyObject* obj);
-	void StopTracking(ProxyObject* obj);
-	void DeleteAllProxies();
-
-private:
-	std::vector<ProxyObject*> proxies;
-	std::mutex lock;
-};
 
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
@@ -58,12 +35,10 @@ class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 protected:
 	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
-		proxyTracker.StartTracking(this);
 	}
 
 	virtual ~ProxyGenerator()
 	{
-		proxyTracker.StopTracking(this);
 		DisableInstance(__ProxyObject());
 	}
 

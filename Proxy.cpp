@@ -4,7 +4,6 @@ namespace jni
 {
 
 jni::Class s_JNIBridgeClass("bitter/jnibridge/JNIBridge");
-ProxyTracker ProxyObject::proxyTracker;
 
 JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke(JNIEnv* env, jobject thiz, jlong ptr, jclass clazz, jobject method, jobjectArray args)
 {
@@ -67,11 +66,6 @@ jobject ProxyObject::__Invoke(jclass clazz, jmethodID mid, jobjectArray args)
 	return result;
 }
 
-void ProxyObject::DeleteAllProxies()
-{
-	proxyTracker.DeleteAllProxies();
-}
-
 bool ProxyObject::__TryInvoke(jclass clazz, jmethodID methodID, jobjectArray args, bool* success, jobject* result)
 {
 	if (*success)
@@ -105,39 +99,6 @@ void ProxyObject::DisableInstance(jobject proxy)
 {
 	static jmethodID disableProxyMID = jni::GetStaticMethodID(s_JNIBridgeClass, "disableInterfaceProxy", "(Ljava/lang/Object;)V");
 	jni::Op<jvoid>::CallStaticMethod(s_JNIBridgeClass, disableProxyMID, proxy);
-}
-
-ProxyTracker::ProxyTracker()
-{
-}
-
-ProxyTracker::~ProxyTracker()
-{
-}
-
-void ProxyTracker::StartTracking(ProxyObject* obj)
-{
-	std::lock_guard<std::mutex> guard(lock);
-	proxies.push_back(obj);
-}
-
-void ProxyTracker::StopTracking(ProxyObject* obj)
-{
-	std::lock_guard<std::mutex> guard(lock);
-	auto iter = std::find(proxies.begin(), proxies.end(), obj);
-	if (iter != proxies.end())
-		proxies.erase(iter);
-}
-
-void ProxyTracker::DeleteAllProxies()
-{
-	std::vector<ProxyObject*> prox;
-	{
-		std::lock_guard<std::mutex> guard(lock);
-		std::swap(proxies, prox);
-	}
-	for (auto proxy : prox)
-		proxy->DisableProxy();
 }
 
 }
