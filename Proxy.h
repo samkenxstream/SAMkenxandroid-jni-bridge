@@ -31,7 +31,14 @@ protected:
 
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
-{	
+{
+public:
+	void DisableProxy() override
+	{
+		DisableInstance(__ProxyObject());
+		m_ProxyObject.Release();
+	}
+
 protected:
 	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
@@ -40,12 +47,6 @@ protected:
 	virtual ~ProxyGenerator()
 	{
 		DisableInstance(__ProxyObject());
-	}
-
-	void DisableProxy() override
-	{
-		DisableInstance(__ProxyObject());
-		m_ProxyObject.Release();
 	}
 
 	::jobject __ProxyObject() const override { return m_ProxyObject; }
