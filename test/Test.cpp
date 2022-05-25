@@ -55,6 +55,16 @@ void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
 	}
 }
 
+void AssertNumProxies(unsigned expected, const char* detail)
+{
+	auto num = jni::ProxyObject::NumberOfActiveProxies();
+	if (num != expected)
+	{
+		printf("Unexpected number of proxies (%s) %u instead of %u\n", detail, num, expected);
+		abort();
+	}
+}
+
 void TestOverrides(JavaVM* vm, JNIEnv* env);
 
 int main(int argc, char** argv)
@@ -279,27 +289,29 @@ int main(int argc, char** argv)
 	// -------------------------------------------------------------
 	// Performance Proxy Test
 	// -------------------------------------------------------------
-	struct PerformanceRunnable : jni::Proxy<Runnable>
 	{
-		int i;
-		PerformanceRunnable() : i(0) {}
-		virtual void Run() {  ++i; }
-	};
-	PerformanceRunnable* perfRunner = new PerformanceRunnable;
-	Runnable perfRunnable = *perfRunner;
-	gettimeofday(&start, NULL);
-	for (int i = 0; i < 1024; ++i)
-		perfRunnable.Run();
-	gettimeofday(&stop, NULL);
-	printf("count: %d, time: %f ms.\n", perfRunner->i, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+		struct PerformanceRunnable : jni::Proxy<Runnable>
+		{
+			int i;
+			PerformanceRunnable() : i(0) {}
+			virtual void Run() {  ++i; }
+		};
+		PerformanceRunnable* perfRunner = new PerformanceRunnable;
+		Runnable perfRunnable = *perfRunner;
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < 1024; ++i)
+			perfRunnable.Run();
+		gettimeofday(&stop, NULL);
+		printf("count: %d, time: %f ms.\n", perfRunner->i, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
 
-	delete perfRunner;
-	gettimeofday(&start, NULL);
-	for (int i = 0; i < 1024; ++i)
-		perfRunnable.Run();
-	gettimeofday(&stop, NULL);
-	printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
-	AbortIfErrors("Failures with Runnable");
+		delete perfRunner;
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < 1024; ++i)
+			perfRunnable.Run();
+		gettimeofday(&stop, NULL);
+		printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+		AbortIfErrors("Failures with Runnable");
+	}
 
 	// -------------------------------------------------------------
 	// Weak Proxy Test
@@ -387,6 +399,8 @@ int main(int argc, char** argv)
 				String javaString = jni::Cast<String>(iterator.Next());
 				printf("%s\n", javaString.c_str());
 			}
+
+			delete testProxy;
 		}
 
 		AbortIfErrors("Failures with multiple interfaces");
@@ -427,6 +441,7 @@ int main(int argc, char** argv)
 	// Proxy Object Disable Test
 	// -------------------------------------------------------------
 	{
+
 		class DisableRunnable : public jni::Proxy<Runnable>
 		{
 		public:
@@ -445,6 +460,8 @@ int main(int argc, char** argv)
 			int runCount;
 		};
 
+		AssertNumProxies(0, "before disable test");
+
 		jni::LocalScope frame;
 		DisableRunnable runnableProxy;
 		Runnable runnableObject(runnableProxy.GetJavaObject());
@@ -456,7 +473,12 @@ int main(int argc, char** argv)
 			abort();
 		}
 
+		AssertNumProxies(1, "while in disable test");
+
 		runnableProxy.DisableProxy();
+
+		AssertNumProxies(0, "after disable test");
+
 		runnableObject.Run();  // this one should not invoke proxy
 		if (runnableProxy.runCount > 1)
 		{
