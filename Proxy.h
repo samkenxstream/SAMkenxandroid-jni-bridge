@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include "API.h"
 namespace jni
 {
@@ -8,6 +9,15 @@ class ProxyObject : public virtual ProxyInvoker
 {
 // Dispatch invoke calls
 public:
+	static unsigned NumberOfActiveProxies()
+	{
+#ifdef DISABLE_PROXY_COUNTING
+		return 0;
+#else
+		return proxyCount.load(std::memory_order_relaxed);
+#endif
+	}
+
 	virtual jobject __Invoke(jclass clazz, jmethodID mid, jobjectArray args);
 	virtual void DisableProxy() = 0;
 
@@ -26,6 +36,10 @@ protected:
 	static jobject NewInstance(void* nativePtr, const jobject interfacce1, const jobject interfacce2);
 	static jobject NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len);
 	static void DisableInstance(jobject proxy);
+
+#if !defined(DISABLE_PROXY_COUNTING)
+	static std::atomic<unsigned> proxyCount;
+#endif
 };
 
 
@@ -35,18 +49,28 @@ class ProxyGenerator : public ProxyObject, public TX::__Proxy...
 public:
 	void DisableProxy() override
 	{
-		DisableInstance(__ProxyObject());
-		m_ProxyObject.Release();
+		auto proxyObject = __ProxyObject();
+		if (proxyObject)
+		{
+			DisableInstance(proxyObject);
+			m_ProxyObject.Release();
+#if !defined(DISABLE_PROXY_COUNTING)
+			proxyCount.fetch_sub(1, std::memory_order_relaxed);
+#endif
+		}
 	}
 
 protected:
 	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
+#if !defined(DISABLE_PROXY_COUNTING)
+		proxyCount.fetch_add(1, std::memory_order_relaxed);
+#endif
 	}
 
 	virtual ~ProxyGenerator()
 	{
-		DisableInstance(__ProxyObject());
+		DisableProxy();
 	}
 
 	::jobject __ProxyObject() const override { return m_ProxyObject; }
