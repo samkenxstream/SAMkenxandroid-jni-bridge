@@ -77,9 +77,17 @@ public:
 		if (m_Ref == o.m_Ref)
 			return *this;
 
+		Release();
 		m_Ref = o.m_Ref;
 		o.m_Ref = nullptr;
 		return *this;
+	}
+
+	void Release()
+	{
+		if (m_Ref && !m_Ref->Release())
+			delete m_Ref;
+		m_Ref = NULL;
 	}
 
 private:
@@ -111,15 +119,6 @@ private:
 	{
 		m_Ref = ref;
 		m_Ref->Aquire();
-	}
-
-	void Release()
-	{
-		if (m_Ref && !m_Ref->Release())
-		{
-			delete m_Ref;
-			m_Ref = NULL;
-		}
 	}
 
 private:

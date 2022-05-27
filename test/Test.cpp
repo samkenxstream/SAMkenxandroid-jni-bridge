@@ -55,6 +55,16 @@ void AbortIfErrorsImpl(JNIEnv* env, const char* message, int line)
 	}
 }
 
+void AssertNumProxies(unsigned expected, const char* detail)
+{
+	auto num = jni::ProxyObject::NumberOfActiveProxies();
+	if (num != expected)
+	{
+		printf("Unexpected number of proxies (%s) %u instead of %u\n", detail, num, expected);
+		abort();
+	}
+}
+
 void TestOverrides(JavaVM* vm, JNIEnv* env);
 
 int main(int argc, char** argv)
@@ -80,7 +90,7 @@ int main(int argc, char** argv)
 
 	JavaVMOption options[2];
 	options[0].optionString = classPath;
-	options[1].optionString = "-Xcheck:jni";
+	options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
 	vm_args.options = options;
 	vm_args.nOptions = 2;
@@ -231,7 +241,7 @@ int main(int argc, char** argv)
 		java::lang::Integer integers4[] = { 1, 2, 3, 4 };
 		jni::Array<jint> test05(4, integers4);
 		for (int i = 0; i < test05.Length(); ++i)
-			printf("ArrayTest05[%ld],", (jint)test05[i]);
+			printf("ArrayTest05[%d],", (int)test05[i]);
 		printf("\n");
 
 		jni::Array<java::lang::Integer> test10(4, 4733);
@@ -258,59 +268,63 @@ int main(int argc, char** argv)
 		virtual void Run() {printf("%s\n", "hello world!!!!"); }
 	};
 
-	PretendRunnable pretendRunnable;
-	Runnable runnable = pretendRunnable;
+	{
+		PretendRunnable pretendRunnable;
+		Runnable runnable = pretendRunnable;
 
-	Thread     thread(pretendRunnable);
-	thread.Start();
-	thread.Join();
+		Thread     thread(pretendRunnable);
+		thread.Start();
+		thread.Join();
 
-	runnable.Run();
+		runnable.Run();
 
-	// Make sure we don't get crashes from deleting the native object.
-	PretendRunnable* pretendRunnable2 = new PretendRunnable;
-	Runnable runnable2 = *pretendRunnable2;
-	runnable2.Run();
-	delete pretendRunnable2;
-	runnable2.Run(); // <-- should not log anything
+		// Make sure we don't get crashes from deleting the native object.
+		PretendRunnable* pretendRunnable2 = new PretendRunnable;
+		Runnable runnable2 = *pretendRunnable2;
+		runnable2.Run();
+		delete pretendRunnable2;
+		runnable2.Run(); // <-- should not log anything
+	}
 
 	// -------------------------------------------------------------
 	// Performance Proxy Test
 	// -------------------------------------------------------------
-	struct PerformanceRunnable : jni::Proxy<Runnable>
 	{
-		int i;
-		PerformanceRunnable() : i(0) {}
-		virtual void Run() {  ++i; }
-	};
-	PerformanceRunnable* perfRunner = new PerformanceRunnable;
-	Runnable perfRunnable = *perfRunner;
-	gettimeofday(&start, NULL);
-	for (int i = 0; i < 1024; ++i)
-		perfRunnable.Run();
-	gettimeofday(&stop, NULL);
-	printf("count: %d, time: %f ms.\n", perfRunner->i, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+		struct PerformanceRunnable : jni::Proxy<Runnable>
+		{
+			int i;
+			PerformanceRunnable() : i(0) {}
+			virtual void Run() {  ++i; }
+		};
+		PerformanceRunnable* perfRunner = new PerformanceRunnable;
+		Runnable perfRunnable = *perfRunner;
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < 1024; ++i)
+			perfRunnable.Run();
+		gettimeofday(&stop, NULL);
+		printf("count: %d, time: %f ms.\n", perfRunner->i, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
 
-	delete perfRunner;
-	gettimeofday(&start, NULL);
-	for (int i = 0; i < 1024; ++i)
-		perfRunnable.Run();
-	gettimeofday(&stop, NULL);
-	printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
-	AbortIfErrors("Failures with Runnable");
+		delete perfRunner;
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < 1024; ++i)
+			perfRunnable.Run();
+		gettimeofday(&stop, NULL);
+		printf("count: %d, time: %f ms.\n", 1024, (stop.tv_sec - start.tv_sec) * 1000.0 + (stop.tv_usec - start.tv_usec) / 1000.0);
+		AbortIfErrors("Failures with Runnable");
+	}
 
 	// -------------------------------------------------------------
 	// Weak Proxy Test
 	// -------------------------------------------------------------
 	struct KillMePleazeRunnable : jni::WeakProxy<Runnable>
 	{
-		virtual ~KillMePleazeRunnable() { printf("%s\n", "KillMePleazeRunnable");}
+		virtual ~KillMePleazeRunnable() { printf("%s\n", "KillMePleazeRunnable destroyed");}
 		virtual void Run() { }
 	};
 
 	{
 		jni::LocalScope frame;
-		new KillMePleazeRunnable;
+		KillMePleazeRunnable destructorShoudDisableCallIntoNative;
 	}
 	AbortIfErrors("Failures with Weak Proxy");
 
@@ -385,6 +399,8 @@ int main(int argc, char** argv)
 				String javaString = jni::Cast<String>(iterator.Next());
 				printf("%s\n", javaString.c_str());
 			}
+
+			delete testProxy;
 		}
 
 		AbortIfErrors("Failures with multiple interfaces");
@@ -420,6 +436,59 @@ int main(int argc, char** argv)
 	}
 
 	AbortIfErrors("Failures with Proxy Object Test");
+
+	// -------------------------------------------------------------
+	// Proxy Object Disable Test
+	// -------------------------------------------------------------
+	{
+
+		class DisableRunnable : public jni::Proxy<Runnable>
+		{
+		public:
+			DisableRunnable() : runCount(0) {}
+
+			virtual void Run()
+			{
+				++runCount;
+			}
+
+			jobject GetJavaObject() const
+			{
+				return __ProxyObject();
+			}
+
+			int runCount;
+		};
+
+		AssertNumProxies(0, "before disable test");
+
+		jni::LocalScope frame;
+		DisableRunnable runnableProxy;
+		Runnable runnableObject(runnableProxy.GetJavaObject());
+		runnableObject.Run();
+
+		if (runnableProxy.runCount == 0)
+		{
+			puts("Expected DisableRunnable to be called, but it wasn't called!");
+			abort();
+		}
+
+		AssertNumProxies(1, "while in disable test");
+
+		runnableProxy.DisableProxy();
+
+		AssertNumProxies(0, "after disable test");
+
+		runnableObject.Run();  // this one should not invoke proxy
+		if (runnableProxy.runCount > 1)
+		{
+			printf("Expected DisableRunnable no longer be called, but it was called: %d!\n", runnableProxy.runCount);
+			abort();
+		}
+
+		// double disable, should not crash
+		runnableProxy.DisableProxy();
+	}
 
 	// -------------------------------------------------------------
 	// Move semantics

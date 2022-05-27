@@ -147,7 +147,7 @@ class JniBridge
         foreach (var toolchain in androidToolchains)
         {
             var androidConfig = new NativeProgramConfiguration(codegen, toolchain, false);
-            var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain), androidZip);
+            var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain, codegen), androidZip);
             nativePrograms.Add(np);
         }
         var headers = SetupJniBridgeHeaders(generatedFilesAndroid, "android");
@@ -335,17 +335,18 @@ class JniBridge
         public Action<NativeProgram> specialConfiguration;
     }
 
-    static StaticLibParams GetAndroidStaticLibParams(ToolChain toolchain)
+    static StaticLibParams GetAndroidStaticLibParams(ToolChain toolchain, CodeGen codegen)
     {
+        var debugMode = codegen == CodeGen.Release ? DebugMode.None : DebugMode.IncludeDebugSymbols;
         Action<NativeProgram> specConfig =  (toolchain.Architecture is ARMv7Architecture)
             ? (np) =>
             {
                 np.CompilerSettingsForAndroid().Add(c => c.WithThumb(true));
-                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(debugMode));
             }
             : (np) =>
             {
-                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(debugMode));
             };
         return new StaticLibParams()
         {

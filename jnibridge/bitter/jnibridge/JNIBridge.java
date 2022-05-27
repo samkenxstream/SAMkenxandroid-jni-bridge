@@ -6,7 +6,6 @@ import java.lang.invoke.*;
 public class JNIBridge
 {
 	static native Object invoke(long ptr, Class clazz, Method method, Object[] args);
-	static native void   delete(long ptr);
 
 	static Object newInterfaceProxy(final long ptr, final Class[] interfaces)
 	{
@@ -82,16 +81,6 @@ public class JNIBridge
 					else
 						throw e;
 				}
-			}
-		}
-
-		public void finalize()
-		{
-			synchronized (m_InvocationLock)
-			{
-				if (m_Ptr == 0)
-					return;
-				JNIBridge.delete(m_Ptr);
 			}
 		}
 
