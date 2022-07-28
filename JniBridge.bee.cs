@@ -196,7 +196,12 @@ class JniBridge
     {
         var sdk = Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT");
         if (!string.IsNullOrEmpty(sdk))
-            return new NPath(sdk);
+        {
+            var sdkNpath = new NPath(sdk);
+            // use sdk from ANDROID_SDK_ROOT path only if it contains required API level, otherwise downlaod from artifactory
+            if (System.IO.File.Exists(sdkNpath.Combine("platforms", kAndroidApi, "android.jar").ToString()))
+                return sdkNpath;
+        }
         var sdkArtifact = StevedoreArtifact.UnityInternal(HostPlatform.Pick(
             linux:   "android-sdk-linux-x86_64/32.0.0_786892eaffb9da632d76518abd381ad6e647d0c442e5df8a5ee83d780f1c9bba.7z",
             mac:     "android-sdk-darwin-x86_64/32.0.0_01b3084deb3c473718ec212d6f34f44d64888e23f60c2b27194a84741dd128a3.7z",
