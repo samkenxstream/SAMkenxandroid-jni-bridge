@@ -247,7 +247,7 @@ class JniBridge
         var apiGeneratorFiles = jarDir.Files("*.java", true);
         var classFileDir = new NPath($"artifacts/{jarname}");
         var apiGeneratorJar = new NPath($"build/{jarname}.jar");
-        var classFiles = jdk.SetupCompilation(classFileDir, apiGeneratorFiles, new NPath[] { jarDir }, new NPath[0]);
+        var classFiles = jdk.SetupCompilation(classFileDir, apiGeneratorFiles, new NPath[] { jarDir }, new NPath[0], targetVersion: "11");
         jdk.SetupJar(new NPath[] { classFileDir }, classFiles, apiGeneratorJar);
         Backend.Current.AddAliasDependency(jarname, apiGeneratorJar);
         return apiGeneratorJar;
