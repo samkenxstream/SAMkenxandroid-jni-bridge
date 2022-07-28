@@ -15,7 +15,7 @@ using System.Linq;
 
 /**
  * Required environment variables:
- *   - ANDROID_SDK_ROOT pointing to directory with Android SDK
+ *   - ANDROID_SDK_ROOT (optional) pointing to directory with Android SDK; will be downloaded from Stevedore otherwise
  *   - JAVA_HOME (optional) pointing to Java install; will be downloaded from Stevedore otherwise
  * Build targets to pass bee:
  *   - apigenerator - build the API generator
@@ -133,10 +133,11 @@ class JniBridge
 
         var jdk = SetupJava();
         var sdk = SetupAndroidSdk();
+        var gps = SetupGooglePlayServices();
 
         var apiGenerator = SetupApiGenerator(jdk);
         var jnibridgeJar = SetupJniBridgeJar(jdk);
-        var generatedFilesAndroid = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetAndroidSourceGenerationParams(sdk));
+        var generatedFilesAndroid = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetAndroidSourceGenerationParams(sdk, gps));
         var generatedFilesMacOS = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetMacOSSourceGenerationParams(jdk));
         var generatedFilesWindows = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetWindowsSourceGenerationParams(jdk));
 
@@ -193,15 +194,22 @@ class JniBridge
 
     static NPath SetupAndroidSdk()
     {
-        return GetEnv("ANDROID_SDK_ROOT");
+        var sdk = Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT");
+        if (!string.IsNullOrEmpty(sdk))
+            return new NPath(sdk);
+        var sdkArtifact = StevedoreArtifact.UnityInternal(HostPlatform.Pick(
+            linux:   "android-sdk-linux-x86_64/32.0.0_786892eaffb9da632d76518abd381ad6e647d0c442e5df8a5ee83d780f1c9bba.7z",
+            mac:     "android-sdk-darwin-x86_64/32.0.0_01b3084deb3c473718ec212d6f34f44d64888e23f60c2b27194a84741dd128a3.7z",
+            windows: "android-sdk-windows-x86_64/32.0.0_5f6c83d41ac3d697823858e27db1774b1ecfe226b6e9a12e944caed0f76f824b.7z"
+        ));
+        return sdkArtifact.Path.ResolveWithFileSystem();
     }
 
-    static NPath GetEnv(string variable)
+    static NPath SetupGooglePlayServices()
     {
-        var path = Environment.GetEnvironmentVariable(variable);
-        if (string.IsNullOrEmpty(path))
-            throw new Exception($"Environment variable {variable} not set");
-        return new NPath(path);
+        // Downloaded from https://dl.google.com/android/repository/google_play_services_3265130_r12.zip
+        var gps = StevedoreArtifact.Testing("google-play-services/3265130_r12_3a601d0d9366fe05c7a56855f2c906a8d703fd297f1c0f6cfdaf27b181be284c.zip");
+        return gps.Path.ResolveWithFileSystem();
     }
 
     static AndroidNdkToolchain[] GetAndroidToolchains()
@@ -247,10 +255,10 @@ class JniBridge
         public string[] classes;
     }
 
-    static SourceGenerationParams GetAndroidSourceGenerationParams(NPath sdk)
+    static SourceGenerationParams GetAndroidSourceGenerationParams(NPath sdk, NPath gps)
     {
         var androidJar = sdk.Combine("platforms", kAndroidApi, "android.jar");
-        var googlePlayServicesJar = sdk.Combine("extras", "google", "google_play_services_froyo", "libproject", "google-play-services_lib", "libs", "google-play-services.jar");
+        var googlePlayServicesJar = gps.Combine("google-play-services", "libproject", "google-play-services_lib", "libs", "google-play-services.jar");
 
         return new SourceGenerationParams()
         {

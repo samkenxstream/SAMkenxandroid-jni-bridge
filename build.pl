@@ -3,7 +3,6 @@ use Cwd qw( abs_path );
 use File::Basename qw( dirname );
 use lib dirname(abs_path($0));
 
-use PrepareAndroidSDK;
 use File::Path;
 use strict;
 use warnings;
@@ -80,13 +79,10 @@ my @classes = (
 	'::com::google::android::gms::common::GooglePlayServicesNotAvailableException',
 );
 
-# Set ANDROID_SDK_ROOT
 sub Prepare
 {
 	my $class_names = join(' ', @classes);
 	my $threads = 8;
-
-    PrepareAndroidSDK::GetAndroidSDK("$api", "21", "froyo");
 
     #system("make clean") && die("Clean failed");
     #system("make api-source PLATFORM=android APINAME=\"$api\" APICLASSES=\"$class_names\"") && die("Failed to make API source");
