@@ -20,23 +20,31 @@ public class APIGenerator
 	final Set<Class> m_VisitedClasses = new TreeSet<Class>(CLASSNAME_COMPARATOR);
 	final Set<Class> m_DependencyChain = new LinkedHashSet<Class>();
 
+	static final String k_UsageMessage = "Usage: APIGenerator <dst> [-s] <jarfile[;jarfile;...]> <regex...>\n";
+
 	public static void main(String[] argsArray) throws Exception
 	{
 		LinkedList<String> args = new LinkedList<String>(Arrays.asList(argsArray));
 		if (args.size() < 2)
 		{
-			System.err.format("Usage: APIGenerator <dst> <jarfile[;jarfile;...]> <regex...>\n");
+			System.err.format(k_UsageMessage);
 			System.exit(1);
 		}
 		String dst = args.pollFirst();
 		if (!new File(dst).isDirectory())
 		{
-			System.err.format("Usage: APIGenerator <dst> <jarfile[;jarfile;...]> <regex...>\n");
+			System.err.format(k_UsageMessage);
 			System.err.format("%s: is not a directory.\n", dst);
 			System.exit(1);
 		}
-
-		String jarList = args.pollFirst();
+		String nextArgument = args.pollFirst();
+		boolean useSystemClasses = false;
+		if (nextArgument.equals("-s"))
+		{
+			useSystemClasses = true;
+			nextArgument = args.pollFirst();
+		}
+		String jarList = nextArgument;
 		LinkedList<JarFile> jars = new LinkedList<JarFile>();
 		if(jarList.contains(";"))
 		{
@@ -44,7 +52,7 @@ public class APIGenerator
 			{
 				if (!new File(jar).isFile())
 				{
-					System.err.format("Usage: APIGenerator <dst> <jarfile[;jarfile;...]> <regex...>\n");
+					System.err.format(k_UsageMessage);
 					System.err.format("%s: is not a jar file.\n", jar);
 					System.exit(1);
 				}
@@ -56,9 +64,18 @@ public class APIGenerator
 		}
 		else if (!new File(jarList).isFile())
 		{
-			System.err.format("Usage: APIGenerator <dst> <jarfile[;jarfile;...]> <regex...>\n");
-			System.err.format("%s: is not a jar file.\n", jarList);
-			System.exit(1);
+			if (useSystemClasses)
+			{
+				// if we are loading system classes, it's fine to not pass any jar files
+				// put argument back as it should contain regex of a class
+				args.addFirst(jarList);
+			}
+			else
+			{
+				System.err.format(k_UsageMessage);
+				System.err.format("%s: is not a jar file.\n", jarList);
+				System.exit(1);
+			}
 		}
 		else
 		{
@@ -79,11 +96,11 @@ public class APIGenerator
 		args.add("::java::lang::System");
 
 		APIGenerator generator = new APIGenerator();
-		generator.collectDependencies(jars, args);
+		generator.collectDependencies(jars, args, useSystemClasses);
 		generator.print(dst);
 	}
 
-	public void collectDependencies(LinkedList<JarFile> files, LinkedList<String> args) throws Exception
+	public void collectDependencies(LinkedList<JarFile> files, LinkedList<String> args, boolean useSystemClasses) throws Exception
 	{
 		LinkedList<URL> urls = new LinkedList<URL>();
 		for(JarFile file : files)
@@ -114,6 +131,7 @@ public class APIGenerator
 		for (String arg : args)
 		{
 			Pattern pattern = Pattern.compile(arg);
+			boolean foundClass = false;
 			for (Class clazz : m_AllClasses)
 			{
 				String cppClassName = getClassName(clazz);
@@ -122,9 +140,38 @@ public class APIGenerator
 				int nClasses = m_DependencyChain.size();
 				collectDependencies(clazz);
 				System.err.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
+				foundClass = true;
 				break;
 			}
+			if (!foundClass)
+			{
+				if (!useSystemClasses)
+				{
+					System.err.format("\nCan't find %s class!\n\n", arg);
+					continue;
+				}
+				try
+				{
+					Class c = ClassLoader.getSystemClassLoader().loadClass(convertToBinaryClassName(arg));
+					String cppClassName = getClassName(c);
+					int nClasses = m_DependencyChain.size();
+					collectDependencies(c);
+					System.err.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
+				}
+				catch (ClassNotFoundException e)
+				{
+					System.err.format("\nCan't find %s class!\n\n", arg);
+				}
+			}
 		}
+	}
+
+	private String convertToBinaryClassName(String name)
+	{
+		name = name.replace("::", ".");
+		if (name.startsWith("."))
+			return name.substring(1);
+		return name;
 	}
 
 	public void collectDependencies(Class clazz) throws Exception

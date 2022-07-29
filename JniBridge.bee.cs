@@ -275,12 +275,10 @@ class JniBridge
 
     static SourceGenerationParams GetDesktopSourceGenerationParams(Jdk jdk, string platformName)
     {
-        var rtJar = jdk.JavaHome.Combine("jre", "lib", "rt.jar");
-
         return new SourceGenerationParams()
         {
             platformName = platformName,
-            inputJars = new [] {rtJar},
+            inputJars = Array.Empty<NPath>(),
             classes = kDesktopClasses,
         };
     }
@@ -316,6 +314,12 @@ class JniBridge
             for (int i = 1; i < genParams.inputJars.Length; ++i)
                 builder.Append(';').Append(genParams.inputJars[i]);
             inputJars = builder.Append('"').ToString();
+        }
+        else if (genParams.platformName.Equals(Platform.OSX) || genParams.platformName.Equals(Platform.Windows))
+        {
+            // Specify -s flag to instruct apigenerator to look for system classes
+            // if we are generating API classes for OSX or Windows platforms and don't specify any jar files
+            inputJars = "-s";
         }
         var apiClassString = string.Join(" ", genParams.classes);
         
@@ -455,7 +459,7 @@ class JniBridge
         np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
         np.IncludeDirectories.Add(jdk.JavaHome.Combine("include", "darwin"));
         np.Libraries.Add(staticLib);
-        var javaLibDir = jdk.JavaHome.Combine("jre", "lib", "server");
+        var javaLibDir = jdk.JavaHome.Combine("lib", "server");
         np.Libraries.Add(new DynamicLibrary(javaLibDir.Combine("libjvm.dylib")));
         np.CompilerSettings().Add(c => c.WithCustomFlags(new [] {$"-Wl,-rpath,{javaLibDir}"}));
         
@@ -481,7 +485,7 @@ class JniBridge
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
 
-        workingDirectory = jdk.JavaHome.Combine("jre/bin/server").MakeAbsolute();
+        workingDirectory = jdk.JavaHome.Combine("bin", "server").MakeAbsolute();
         targetExecutable = destDir.Combine(np.Name + ".exe").MakeAbsolute();
         arguments = "build/jnibridge.jar".ToNPath().MakeAbsolute().InQuotes();
         var script = destDir.Combine("runtests.cmd");
