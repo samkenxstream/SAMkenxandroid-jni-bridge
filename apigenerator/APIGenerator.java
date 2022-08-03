@@ -39,7 +39,7 @@ public class APIGenerator
 		}
 		String nextArgument = args.pollFirst();
 		boolean useSystemClasses = false;
-		if (nextArgument.equals("-s"))
+		if ("-s".equals(nextArgument))
 		{
 			useSystemClasses = true;
 			nextArgument = args.pollFirst();
@@ -111,7 +111,7 @@ public class APIGenerator
 
 		for(JarFile file : files)
 		{
-			System.err.format("Loading classes from '%s'\n", file.getName());
+			System.out.format("Loading classes from '%s'\n", file.getName());
 
 			Enumeration<JarEntry> entries = file.entries();
 			while (entries.hasMoreElements())
@@ -127,7 +127,7 @@ public class APIGenerator
 			}
 		}
 
-		System.err.format("Searching for candidates\n");
+		System.out.format("Searching for candidates\n");
 		for (String arg : args)
 		{
 			Pattern pattern = Pattern.compile(arg);
@@ -139,7 +139,7 @@ public class APIGenerator
 					continue;
 				int nClasses = m_DependencyChain.size();
 				collectDependencies(clazz);
-				System.err.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
+				System.out.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
 				foundClass = true;
 				break;
 			}
@@ -147,7 +147,7 @@ public class APIGenerator
 			{
 				if (!useSystemClasses)
 				{
-					System.err.format("\nCan't find %s class!\n\n", arg);
+					System.err.format("\nCan't find %s class!\n", arg);
 					continue;
 				}
 				try
@@ -156,7 +156,7 @@ public class APIGenerator
 					String cppClassName = getClassName(c);
 					int nClasses = m_DependencyChain.size();
 					collectDependencies(c);
-					System.err.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
+					System.out.format("[%d][%d]\t%s\n", m_DependencyChain.size(), m_DependencyChain.size() - nClasses, cppClassName);
 				}
 				catch (ClassNotFoundException e)
 				{
@@ -513,7 +513,7 @@ public class APIGenerator
 
 	private void print(String dst) throws Exception
 	{
-		System.err.println("Generating cpp code");
+		System.out.println("Generating cpp code");
 		// Implement classes
 		for (Class clazz : m_VisitedClasses)
 		{
@@ -523,7 +523,7 @@ public class APIGenerator
 			source.close();
 		}
 
-		System.err.println("Creating header file");
+		System.out.println("Creating header file");
 		PrintStream header = new PrintStream(new FileOutputStream(new File(dst, "API.h")));
 		header.format("#pragma once\n");
 		header.format("#include \"APIHelper.h\"\n");
