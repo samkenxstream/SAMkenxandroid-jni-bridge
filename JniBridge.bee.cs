@@ -213,7 +213,7 @@ class JniBridge
     static NPath SetupGooglePlayServices()
     {
         // Downloaded from https://dl.google.com/android/repository/google_play_services_3265130_r12.zip
-        var gps = StevedoreArtifact.Testing("google-play-services/3265130_r12_3a601d0d9366fe05c7a56855f2c906a8d703fd297f1c0f6cfdaf27b181be284c.zip");
+        var gps = StevedoreArtifact.UnityInternal("google-play-services/3265130_r12_3a601d0d9366fe05c7a56855f2c906a8d703fd297f1c0f6cfdaf27b181be284c.zip");
         return gps.Path.ResolveWithFileSystem();
     }
 
