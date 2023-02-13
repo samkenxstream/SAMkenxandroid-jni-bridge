@@ -67,3 +67,15 @@ test_trigger:
     - .yamato/build.yml#build_for_android_win
     - .yamato/build.yml#test_on_osx
     - .yamato/build.yml#test_on_win
+
+publish_to_stevedore:
+  name: Publish (Stevedore testing)
+  agent:
+    type: Unity::VM::osx
+    image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    flavor: b1.xlarge
+  commands:
+    - curl -sSo StevedoreUpload.exe "$STEVEDORE_UPLOAD_TOOL_URL"
+    - mono StevedoreUpload.exe --version-len=12 --repo=testing --version="$GIT_REVISION" build/*
+  dependencies:
+    - .yamato/build.yml#build_for_android_osx
