@@ -75,7 +75,7 @@ publish_to_stevedore:
     image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
     flavor: b1.xlarge
   commands:
-    - curl -sSo StevedoreUpload.exe "$STEVEDORE_UPLOAD_TOOL_URL"
-    - mono StevedoreUpload.exe --version-len=12 --repo=testing --version="$GIT_REVISION" build/*
+    - curl -sSo StevedoreUpload "$STEVEDORE_UPLOAD_TOOL_MAC_X64_URL"
+    - ./StevedoreUpload --version-len=12 --repo=testing --version="$GIT_REVISION" build/*
   dependencies:
     - .yamato/build.yml#build_for_android_osx
