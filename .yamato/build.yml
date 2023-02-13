@@ -76,6 +76,7 @@ publish_to_stevedore:
     flavor: b1.xlarge
   commands:
     - curl -sSo StevedoreUpload "$STEVEDORE_UPLOAD_TOOL_MAC_X64_URL"
+    - chmod +x StevedoreUpload
     - ./StevedoreUpload --version-len=12 --repo=testing --version="$GIT_REVISION" build/*
   dependencies:
     - .yamato/build.yml#build_for_android_osx
