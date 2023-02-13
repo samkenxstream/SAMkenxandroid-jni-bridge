@@ -172,7 +172,7 @@ class JniBridge
         var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk,
             out var targetExecutable, out var arguments, out var workingDirectory);
 
-        var androidZipPath = "build/builds.zip";
+        var androidZipPath = "build/jnibridge-android.7z";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
 

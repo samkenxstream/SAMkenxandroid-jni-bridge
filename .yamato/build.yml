@@ -11,7 +11,7 @@ build_for_android_osx:
   artifacts:
     artifacts:
       paths:
-        - build/builds.zip
+        - build/jnibridge-android.7z
 
 build_for_android_win:
   name: Build JNIBridge Windows (For Local Development)
@@ -26,7 +26,7 @@ build_for_android_win:
   artifacts:
     artifacts:
       paths:
-        - build/builds.zip
+        - build/jnibridge-android.7z
 
 test_on_osx:
   name: Test on OSX
