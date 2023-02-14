@@ -158,6 +158,7 @@ class JniBridge
         }
         androidZip.AddFileToArchive(jnibridgeJar);
         androidZip.AddFileToArchive(versionFile);
+        androidZip.AddFileToArchive("LICENSE");
 
 
         var codegenForTests = CodeGen.Debug;
