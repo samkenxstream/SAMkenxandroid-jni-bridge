@@ -40,16 +40,16 @@ public class JNIBridge
 			MethodHandle method;
 			try
 			{
-                method = MethodHandles.lookup()
-                    .findSpecial(k, m.getName(), MethodType.methodType(m.getReturnType(), m.getParameterTypes()), proxy.getClass())
-                    .bindTo(proxy);
-	        }
-	        catch (Exception e)
-	        {
-	            return null;
-	        }
+				method = MethodHandles.lookup()
+					.findSpecial(k, m.getName(), MethodType.methodType(m.getReturnType(), m.getParameterTypes()), proxy.getClass())
+					.bindTo(proxy);
+			}
+			catch (Exception e)
+			{
+				return null;
+			}
 
-            return method.invokeWithArguments(args);
+			return method.invokeWithArguments(args);
 		}
 
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
