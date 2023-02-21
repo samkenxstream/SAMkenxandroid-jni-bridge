@@ -46,6 +46,7 @@ public class JNIBridge
 			}
 			catch (Exception e)
 			{
+				System.err.println("JNIBridge error calling default method: " + e.getMessage());
 				return null;
 			}
 
@@ -69,7 +70,10 @@ public class JNIBridge
 					if ((method.getModifiers() & Modifier.ABSTRACT) == 0)
 						return invokeDefault(proxy, e, method, args);
 					else
+					{
+						System.err.println("JNIBridge error: Java interface default methods are only supported since Android Oreo");
 						throw e;
+					}
 				}
 			}
 		}
