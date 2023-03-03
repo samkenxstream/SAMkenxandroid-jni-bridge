@@ -66,8 +66,8 @@ public class JNIBridge
 				}
 				catch (NoSuchMethodError e)
 				{
-					// isDefault() is only available since API 24, instead use getModifiers to check if a method has default implementation
-					if ((method.getModifiers() & Modifier.ABSTRACT) == 0)
+					// isDefault() is only available since API 24, but this code path is not hit on lower ones as we generate methods for everything
+					if (method.isDefault())
 						return invokeDefault(proxy, e, method, args);
 					else
 					{
