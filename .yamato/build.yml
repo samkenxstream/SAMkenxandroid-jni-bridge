@@ -2,7 +2,7 @@ build_for_android_osx:
   name: Build JNIBridge OSX (For Publishing)
   agent:
     type: Unity::VM::osx
-    image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    image: build-system/unity-macos-10.15:v1.0.6-1175877
     flavor: b1.xlarge
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
@@ -32,7 +32,7 @@ test_on_osx:
   name: Test on OSX
   agent:
     type: Unity::VM::osx
-    image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    image: build-system/unity-macos-10.15:v1.0.6-1175877
     flavor: b1.xlarge
   variables:
     ANDROID_SDK_ROOT: /Users/bokken/android-sdk_auto
@@ -54,7 +54,7 @@ test_trigger:
   name: Tests Trigger
   agent:
     type: Unity::VM::osx
-    image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    image: build-system/unity-macos-10.15:v1.0.6-1175877
     flavor: b1.xlarge
   commands:
     - true
@@ -72,7 +72,7 @@ publish_to_stevedore:
   name: Publish (Stevedore testing)
   agent:
     type: Unity::VM::osx
-    image: build-system/unity-extra-macos-10.13-katana:v0.3.6-621005
+    image: build-system/unity-macos-10.15:v1.0.6-1175877
     flavor: b1.xlarge
   commands:
     - curl -sSo StevedoreUpload "$STEVEDORE_UPLOAD_TOOL_MAC_X64_URL"
