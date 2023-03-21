@@ -154,10 +154,11 @@ class JniBridge
         var headers = SetupJniBridgeHeaders(generatedFilesAndroid, "android");
         foreach (var header in headers)
         {
-            androidZip.AddFileToArchive(header, new NPath("include").Combine(header.FileName));
+            androidZip.AddFileToArchive(header, new NPath("include").Combine("jnibridge", header.FileName));
         }
         androidZip.AddFileToArchive(jnibridgeJar);
         androidZip.AddFileToArchive(versionFile);
+        androidZip.AddFileToArchive("LICENSE");
 
 
         var codegenForTests = CodeGen.Debug;
@@ -172,7 +173,7 @@ class JniBridge
         var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk,
             out var targetExecutable, out var arguments, out var workingDirectory);
 
-        var androidZipPath = "build/builds.zip";
+        var androidZipPath = "build/jnibridge-android.7z";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
 
@@ -440,7 +441,7 @@ class JniBridge
     static NPath[] SetupJniBridgeHeaders(NPath generatedFilesDir, string platformName)
     {
         var includeFiles = new List<NPath>();
-        var includes = new NPath("build").Combine(platformName, "include");
+        var includes = new NPath("build").Combine(platformName, "include", "jnibridge");
 
         includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine("API.h"), generatedFilesDir.Combine("API.h")));
         foreach (var file in HeaderFiles)
