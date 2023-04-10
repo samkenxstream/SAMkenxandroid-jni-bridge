@@ -15,7 +15,7 @@ using System.Linq;
 
 /**
  * Required environment variables:
- *   - ANDROID_SDK_ROOT pointing to directory with Android SDK
+ *   - ANDROID_SDK_ROOT (optional) pointing to directory with Android SDK; will be downloaded from Stevedore otherwise
  *   - JAVA_HOME (optional) pointing to Java install; will be downloaded from Stevedore otherwise
  * Build targets to pass bee:
  *   - apigenerator - build the API generator
@@ -133,10 +133,11 @@ class JniBridge
 
         var jdk = SetupJava();
         var sdk = SetupAndroidSdk();
+        var gps = SetupGooglePlayServices();
 
         var apiGenerator = SetupApiGenerator(jdk);
         var jnibridgeJar = SetupJniBridgeJar(jdk);
-        var generatedFilesAndroid = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetAndroidSourceGenerationParams(sdk));
+        var generatedFilesAndroid = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetAndroidSourceGenerationParams(sdk, gps));
         var generatedFilesMacOS = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetMacOSSourceGenerationParams(jdk));
         var generatedFilesWindows = SetupSourceGeneration(jdk, apiGenerator, jnibridgeJar, GetWindowsSourceGenerationParams(jdk));
 
@@ -147,16 +148,17 @@ class JniBridge
         foreach (var toolchain in androidToolchains)
         {
             var androidConfig = new NativeProgramConfiguration(codegen, toolchain, false);
-            var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain), androidZip);
+            var np = SetupJniBridgeStaticLib(generatedFilesAndroid, androidConfig, GetAndroidStaticLibParams(toolchain, codegen), androidZip);
             nativePrograms.Add(np);
         }
         var headers = SetupJniBridgeHeaders(generatedFilesAndroid, "android");
         foreach (var header in headers)
         {
-            androidZip.AddFileToArchive(header, new NPath("include").Combine(header.FileName));
+            androidZip.AddFileToArchive(header, new NPath("include").Combine("jnibridge", header.FileName));
         }
         androidZip.AddFileToArchive(jnibridgeJar);
         androidZip.AddFileToArchive(versionFile);
+        androidZip.AddFileToArchive("LICENSE");
 
 
         var codegenForTests = CodeGen.Debug;
@@ -171,7 +173,7 @@ class JniBridge
         var windowsTestProgram = SetupTestProgramWindows(windowsToolchain, windowsStaticLib, codegenForTests, generatedFilesWindows, jdk,
             out var targetExecutable, out var arguments, out var workingDirectory);
 
-        var androidZipPath = "build/builds.zip";
+        var androidZipPath = "build/jnibridge-android.7z";
         ZipTool.SetupPack(androidZipPath, androidZip);
         Backend.Current.AddAliasDependency("build:android:zip", androidZipPath);
 
@@ -184,24 +186,36 @@ class JniBridge
         if (jdk != null)
             return jdk;
         var openJdk = StevedoreArtifact.UnityInternal(HostPlatform.Pick(
-            linux:   "open-jdk-linux-x64/jdk8u172-b11_4be8440cc514099cfe1b50cbc74128f6955cd90fd5afe15ea7be60f832de67b4.zip",
-            mac:     "open-jdk-mac-x64/jdk8u172-b11_01c8518f34d083b6adf57f1a3a7cff76e78dc0a2523b6332d10a0f30fcb8d308.zip",
-            windows: "open-jdk-win-x64/jdk8u172-b11_43d8964b5d97b95a87b54ed5b08b70dcb0aa4f6521a1dad4caba958e44c205b9.zip"
+            linux:   "open-jdk-linux-x64/jdk11.0.14.1-1_c17a2ae6fe1b4281fb613fed32027cf93e0251795387941bd8c1fcb6c74f9db4.zip",
+            mac:     "open-jdk-mac-x64/jdk11.0.14.1-1_236fc2e31a8b6da32fbcf8624815f509c51605580cb2c6285e55510362f272f8.zip",
+            windows: "open-jdk-win-x64/jdk11.0.14.1-1_85218201fea144521d643808d167605d6d46cd4fe44ee4001991a3a4b76fdd64.zip"
         ));
         return new Jdk(openJdk.Path.ResolveWithFileSystem());
     }
 
     static NPath SetupAndroidSdk()
     {
-        return GetEnv("ANDROID_SDK_ROOT");
+        var sdk = Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT");
+        if (!string.IsNullOrEmpty(sdk))
+        {
+            var sdkNpath = new NPath(sdk);
+            // use sdk from ANDROID_SDK_ROOT path only if it contains required API level, otherwise downlaod from artifactory
+            if (System.IO.File.Exists(sdkNpath.Combine("platforms", kAndroidApi, "android.jar").ToString()))
+                return sdkNpath;
+        }
+        var sdkArtifact = StevedoreArtifact.UnityInternal(HostPlatform.Pick(
+            linux:   "android-sdk-linux-x86_64/32.0.0_786892eaffb9da632d76518abd381ad6e647d0c442e5df8a5ee83d780f1c9bba.7z",
+            mac:     "android-sdk-darwin-x86_64/32.0.0_01b3084deb3c473718ec212d6f34f44d64888e23f60c2b27194a84741dd128a3.7z",
+            windows: "android-sdk-windows-x86_64/32.0.0_5f6c83d41ac3d697823858e27db1774b1ecfe226b6e9a12e944caed0f76f824b.7z"
+        ));
+        return sdkArtifact.Path.ResolveWithFileSystem();
     }
 
-    static NPath GetEnv(string variable)
+    static NPath SetupGooglePlayServices()
     {
-        var path = Environment.GetEnvironmentVariable(variable);
-        if (string.IsNullOrEmpty(path))
-            throw new Exception($"Environment variable {variable} not set");
-        return new NPath(path);
+        // Downloaded from https://dl.google.com/android/repository/google_play_services_3265130_r12.zip
+        var gps = StevedoreArtifact.UnityInternal("google-play-services/3265130_r12_3a601d0d9366fe05c7a56855f2c906a8d703fd297f1c0f6cfdaf27b181be284c.zip");
+        return gps.Path.ResolveWithFileSystem();
     }
 
     static AndroidNdkToolchain[] GetAndroidToolchains()
@@ -234,7 +248,7 @@ class JniBridge
         var apiGeneratorFiles = jarDir.Files("*.java", true);
         var classFileDir = new NPath($"artifacts/{jarname}");
         var apiGeneratorJar = new NPath($"build/{jarname}.jar");
-        var classFiles = jdk.SetupCompilation(classFileDir, apiGeneratorFiles, new NPath[] { jarDir }, new NPath[0]);
+        var classFiles = jdk.SetupCompilation(classFileDir, apiGeneratorFiles, new NPath[] { jarDir }, new NPath[0], targetVersion: "11");
         jdk.SetupJar(new NPath[] { classFileDir }, classFiles, apiGeneratorJar);
         Backend.Current.AddAliasDependency(jarname, apiGeneratorJar);
         return apiGeneratorJar;
@@ -247,10 +261,10 @@ class JniBridge
         public string[] classes;
     }
 
-    static SourceGenerationParams GetAndroidSourceGenerationParams(NPath sdk)
+    static SourceGenerationParams GetAndroidSourceGenerationParams(NPath sdk, NPath gps)
     {
         var androidJar = sdk.Combine("platforms", kAndroidApi, "android.jar");
-        var googlePlayServicesJar = sdk.Combine("extras", "google", "google_play_services_froyo", "libproject", "google-play-services_lib", "libs", "google-play-services.jar");
+        var googlePlayServicesJar = gps.Combine("google-play-services", "libproject", "google-play-services_lib", "libs", "google-play-services.jar");
 
         return new SourceGenerationParams()
         {
@@ -262,12 +276,10 @@ class JniBridge
 
     static SourceGenerationParams GetDesktopSourceGenerationParams(Jdk jdk, string platformName)
     {
-        var rtJar = jdk.JavaHome.Combine("jre", "lib", "rt.jar");
-
         return new SourceGenerationParams()
         {
             platformName = platformName,
-            inputJars = new [] {rtJar},
+            inputJars = Array.Empty<NPath>(),
             classes = kDesktopClasses,
         };
     }
@@ -304,6 +316,12 @@ class JniBridge
                 builder.Append(';').Append(genParams.inputJars[i]);
             inputJars = builder.Append('"').ToString();
         }
+        else if (genParams.platformName.Equals(Platform.OSX) || genParams.platformName.Equals(Platform.Windows))
+        {
+            // Specify -s flag to instruct apigenerator to look for system classes
+            // if we are generating API classes for OSX or Windows platforms and don't specify any jar files
+            inputJars = "-s";
+        }
         var apiClassString = string.Join(" ", genParams.classes);
         
         Backend.Current.AddAction(
@@ -335,17 +353,18 @@ class JniBridge
         public Action<NativeProgram> specialConfiguration;
     }
 
-    static StaticLibParams GetAndroidStaticLibParams(ToolChain toolchain)
+    static StaticLibParams GetAndroidStaticLibParams(ToolChain toolchain, CodeGen codegen)
     {
+        var debugMode = codegen == CodeGen.Release ? DebugMode.None : DebugMode.IncludeDebugSymbols;
         Action<NativeProgram> specConfig =  (toolchain.Architecture is ARMv7Architecture)
             ? (np) =>
             {
                 np.CompilerSettingsForAndroid().Add(c => c.WithThumb(true));
-                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(debugMode));
             }
             : (np) =>
             {
-                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(DebugMode.None));
+                np.CompilerSettingsForAndroid().Add(c => c.WithDebugMode(debugMode));
             };
         return new StaticLibParams()
         {
@@ -422,7 +441,7 @@ class JniBridge
     static NPath[] SetupJniBridgeHeaders(NPath generatedFilesDir, string platformName)
     {
         var includeFiles = new List<NPath>();
-        var includes = new NPath("build").Combine(platformName, "include");
+        var includes = new NPath("build").Combine(platformName, "include", "jnibridge");
 
         includeFiles.Add(Backend.Current.SetupCopyFile(includes.Combine("API.h"), generatedFilesDir.Combine("API.h")));
         foreach (var file in HeaderFiles)
@@ -441,7 +460,7 @@ class JniBridge
         np.IncludeDirectories.Add(jdk.JavaHome.Combine("include"));
         np.IncludeDirectories.Add(jdk.JavaHome.Combine("include", "darwin"));
         np.Libraries.Add(staticLib);
-        var javaLibDir = jdk.JavaHome.Combine("jre", "lib", "server");
+        var javaLibDir = jdk.JavaHome.Combine("lib", "server");
         np.Libraries.Add(new DynamicLibrary(javaLibDir.Combine("libjvm.dylib")));
         np.CompilerSettings().Add(c => c.WithCustomFlags(new [] {$"-Wl,-rpath,{javaLibDir}"}));
         
@@ -467,7 +486,7 @@ class JniBridge
         var config = new NativeProgramConfiguration(codegen, toolchain, false);
         var target = np.SetupSpecificConfiguration(config, config.ToolChain.ExecutableFormat).DeployTo(destDir);
 
-        workingDirectory = jdk.JavaHome.Combine("jre/bin/server").MakeAbsolute();
+        workingDirectory = jdk.JavaHome.Combine("bin", "server").MakeAbsolute();
         targetExecutable = destDir.Combine(np.Name + ".exe").MakeAbsolute();
         arguments = "build/jnibridge.jar".ToNPath().MakeAbsolute().InQuotes();
         var script = destDir.Combine("runtests.cmd");

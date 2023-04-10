@@ -4,7 +4,9 @@ namespace jni
 {
 
 jni::Class s_JNIBridgeClass("bitter/jnibridge/JNIBridge");
-ProxyTracker ProxyObject::proxyTracker;
+#if !defined(DISABLE_PROXY_COUNTING)
+std::atomic<unsigned> ProxyObject::proxyCount;
+#endif
 
 JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke(JNIEnv* env, jobject thiz, jlong ptr, jclass clazz, jobject method, jobjectArray args)
 {
@@ -23,11 +25,6 @@ JNIEXPORT jobject JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_in
 	return proxy->__Invoke(clazz, methodID, args);
 }
 
-JNIEXPORT void JNICALL Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_delete(JNIEnv* env, jobject thiz, jlong ptr)
-{
-	delete (ProxyInvoker*)ptr;
-}
-
 bool ProxyInvoker::__Register()
 {
 	jni::LocalScope frame;
@@ -39,10 +36,9 @@ bool ProxyInvoker::__Register()
 
 	JNINativeMethod nativeProxyFunction[] = {
 		{invokeMethodName, invokeMethodSignature, (void*) Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_invoke},
-		{deleteMethodName, deleteMethodSignature, (void*) Java_bitter_jnibridge_JNIBridge_00024InterfaceProxy_delete}
 	};
 
-	if (nativeProxyClass) jni::GetEnv()->RegisterNatives(nativeProxyClass, nativeProxyFunction, 2); // <-- fix this
+	if (nativeProxyClass) jni::GetEnv()->RegisterNatives(nativeProxyClass, nativeProxyFunction, 1);
 	return !jni::CheckError();
 }
 
@@ -71,11 +67,6 @@ jobject ProxyObject::__Invoke(jclass clazz, jmethodID mid, jobjectArray args)
 	}
 
 	return result;
-}
-
-void ProxyObject::DeleteAllProxies()
-{
-	proxyTracker.DeleteAllProxies();
 }
 
 bool ProxyObject::__TryInvoke(jclass clazz, jmethodID methodID, jobjectArray args, bool* success, jobject* result)
@@ -111,56 +102,6 @@ void ProxyObject::DisableInstance(jobject proxy)
 {
 	static jmethodID disableProxyMID = jni::GetStaticMethodID(s_JNIBridgeClass, "disableInterfaceProxy", "(Ljava/lang/Object;)V");
 	jni::Op<jvoid>::CallStaticMethod(s_JNIBridgeClass, disableProxyMID, proxy);
-}
-
-ProxyTracker::ProxyTracker()
-{
-	head = NULL;
-}
-
-ProxyTracker::~ProxyTracker()
-{
-}
-
-void ProxyTracker::StartTracking(ProxyObject* obj)
-{
-	std::lock_guard<std::mutex> guard(lock);
-	head = new LinkedProxy(obj, head);
-}
-
-void ProxyTracker::StopTracking(ProxyObject* obj)
-{
-	std::lock_guard<std::mutex> guard(lock);
-	LinkedProxy* current = head;
-	LinkedProxy* previous = NULL;
-	while (current != NULL && current->obj != obj)
-	{
-		previous = current;
-		current = current->next;
-	}
-
-	if (current != NULL)
-	{
-		if (previous == NULL)
-			head = current->next;
-		else
-			previous->next = current->next;
-		delete current;
-	}
-}
-
-void ProxyTracker::DeleteAllProxies()
-{
-	std::lock_guard<std::mutex> guard(lock);
-	LinkedProxy* current = head;
-	head = NULL; // Destructor will call StopTracking, this will prevent it from looping through the whole list
-	while (current != NULL)
-	{
-		LinkedProxy* previous = current;
-		current = current->next;
-		delete previous->obj;
-		delete previous;
-	}
 }
 
 }

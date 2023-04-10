@@ -1,20 +1,25 @@
 #pragma once
 
+#include <atomic>
 #include "API.h"
-#include <mutex>
-
 namespace jni
 {
-
-class ProxyTracker;
 
 class ProxyObject : public virtual ProxyInvoker
 {
 // Dispatch invoke calls
 public:
+	static unsigned NumberOfActiveProxies()
+	{
+#ifdef DISABLE_PROXY_COUNTING
+		return 0;
+#else
+		return proxyCount.load(std::memory_order_relaxed);
+#endif
+	}
+
 	virtual jobject __Invoke(jclass clazz, jmethodID mid, jobjectArray args);
-// Cleanup all proxy objects
-	static void DeleteAllProxies();
+	virtual void DisableProxy() = 0;
 
 // These functions are special and always forwarded
 protected:
@@ -32,49 +37,43 @@ protected:
 	static jobject NewInstance(void* nativePtr, const jobject* interfaces, jsize interfaces_len);
 	static void DisableInstance(jobject proxy);
 
-	static ProxyTracker proxyTracker;
+#if !defined(DISABLE_PROXY_COUNTING)
+	static std::atomic<unsigned> proxyCount;
+#endif
 };
 
-
-class ProxyTracker 
-{
-public:
-	ProxyTracker();
-	~ProxyTracker();
-	void StartTracking(ProxyObject* obj);
-	void StopTracking(ProxyObject* obj);
-	void DeleteAllProxies();
-
-private:
-	class LinkedProxy
-	{
-	public:
-		LinkedProxy(ProxyObject* target, LinkedProxy* link) : obj(target), next(link) {}
-
-		ProxyObject* obj;
-		LinkedProxy* next;
-	};
-
-	LinkedProxy* head;
-	std::mutex lock;
-};
 
 template <class RefAllocator, class ...TX>
 class ProxyGenerator : public ProxyObject, public TX::__Proxy...
-{	
+{
+public:
+	void DisableProxy() override
+	{
+		auto proxyObject = __ProxyObject();
+		if (proxyObject)
+		{
+			DisableInstance(proxyObject);
+			m_ProxyObject.Release();
+#if !defined(DISABLE_PROXY_COUNTING)
+			proxyCount.fetch_sub(1, std::memory_order_relaxed);
+#endif
+		}
+	}
+
 protected:
 	ProxyGenerator() : m_ProxyObject(CreateInstance())
 	{
-		proxyTracker.StartTracking(this);
+#if !defined(DISABLE_PROXY_COUNTING)
+		proxyCount.fetch_add(1, std::memory_order_relaxed);
+#endif
 	}
 
 	virtual ~ProxyGenerator()
 	{
-		proxyTracker.StopTracking(this);
-		DisableInstance(__ProxyObject());
+		DisableProxy();
 	}
 
-	virtual ::jobject __ProxyObject() const { return m_ProxyObject; }
+	::jobject __ProxyObject() const override { return m_ProxyObject; }
 
 private:
 	inline jobject CreateInstance()
@@ -84,7 +83,7 @@ private:
 	}
 
 	template<typename... Args> inline void DummyInvoke(Args&&...) {}
-	virtual bool __InvokeInternal(jclass clazz, jmethodID mid, jobjectArray args, jobject* result)
+	bool __InvokeInternal(jclass clazz, jmethodID mid, jobjectArray args, jobject* result) override
 	{
 		bool success = false;
 		DummyInvoke(ProxyObject::__TryInvoke(clazz, mid, args, &success, result), TX::__Proxy::__TryInvoke(clazz, mid, args, &success, result)...);
